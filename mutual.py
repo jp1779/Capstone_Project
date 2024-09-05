@@ -1,58 +1,54 @@
-import re # For regular expression operations like removing spaces.
-import pandas as pd # For CSV files operations.
-
-import nltk # For extra preprocessing functions
-from nltk.tokenize import word_tokenize # Tokenizes the data
+import re
+import pandas as pd
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
 
 # Function called just to see if the other functions work on a random string.
 def Test():
-  test = 'Thi s is a TeSTING str ing, 5'
-  print('\nOriginal string: ' + test)
+    test = 'Thi s is a TeSTING str ing, 5'
+    print('\nOriginal string: ' + test)
 
-  preProcessedTest = PreprocessText(test)
-  print('Preprocessed: ' , preProcessedTest)
-  
+    stop_words = set(stopwords.words('english'))
+    preProcessedTest = PreprocessText(test, stop_words)
+    print('Preprocessed: ', preProcessedTest)
 
+# Function that will preprocess the text and remove stopwords.
+def PreprocessText(text, stop_words):
+    # Remove the blank spaces in the text and return text without whitespace.
+    text = re.sub(r'\s+', ' ', text).strip()
 
+    # Makes the text lowercase.
+    text = text.lower()
 
+    # Tokenize the data using nltk's word_tokenize.
+    tokenizedData = word_tokenize(text)
 
-# Function that will preprocess the text as required.
-def PreprocessText(text):
+    # Remove stopwords from the tokenized data.
+    tokenizedData = [word for word in tokenizedData if word not in stop_words]
 
-  # Remove the blank spaces in the text and return text without whitespace.
-  # Uses the sub function to replace whitespace character sequences and then use strip to remove leading/trailing whitespaces.
-  text = re.sub(r'\s+', ' ', text).strip()
-
-  # Makes the text lowercase.
-  text = text.lower()
-
-  # Tokenize the data (new var since it is of type list[str] now).
-  tokenizedData = word_tokenize(text)
-
-  return tokenizedData
-
-
+    return tokenizedData  # Return the tokenized data as a list (not a string).
 
 def main():
+    # Load stopwords from nltk.
+    stop_words = set(stopwords.words('english'))
 
-  Test()
+    Test()
 
-  # Read the provided CSV files.
-  fullTrainingSet = pd.read_csv('BBC_train_full.csv')
-  testSet = pd.read_csv('test_data.csv')
+    # Read the provided CSV files.
+    fullTrainingSet = pd.read_csv('BBC_train_full.csv')
+    testSet = pd.read_csv('test_data.csv')
 
-  # Now apply to the training and testing sets.
-  fullTrainingSet['text'] = fullTrainingSet['text'].apply(PreprocessText)
-  testSet['text'] = testSet['text'].apply(PreprocessText)
-  
-  # Save this as a new file so we can check if it looks good.
-  fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index = False)
-  testSet.to_csv('test_data_preprocessed.csv', index = False)
+    # Apply preprocessing (including stopword removal) to the training and testing sets.
+    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text, stop_words))
+    testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text, stop_words))
 
-  print('\nSaved the training and test sets with no spaces\n')
+    # Save the preprocessed data to new CSV files.
+    fullTrainingSet.to_csv('BBC_train_full_preprocessed_with_stopwords.csv', index=False)
+    testSet.to_csv('test_data_preprocessed_with_stopwords.csv', index=False)
 
-
+    print('\nSaved the training and test sets with stopwords removed and tokenized as lists\n')
 
 if __name__ == '__main__':
-  main()
+    main()
