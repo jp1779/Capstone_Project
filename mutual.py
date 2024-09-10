@@ -24,16 +24,20 @@ def get_wordnet_pos(tag):
 
 # Function to test preprocessing on a random string
 def Test():
-    test = 'Thi s is a TeSTING str ing, 5'
+    test = 'Thi s is a TeSTING str ing, 5 symbols like % $ ( ) and numbers 123. . . '
     print('\nOriginal string: ' + test)
 
     stop_words = set(stopwords.words('english'))
     preProcessedTest = PreprocessText(test, stop_words)
     print('Preprocessed: ', preProcessedTest)
 
-# Function that will preprocess the text, remove stopwords, and lemmatize
+# Function that will clean the data so that the models can use it.
 def PreprocessText(text, stop_words):
-    # Remove the blank spaces in the text and return text without whitespace.
+
+    # Remove numbers and symbols from the data.
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+
+    # Remove consecutive blank spaces between words and trailing/leading whitspace.
     text = re.sub(r'\s+', ' ', text).strip()
 
     # Makes the text lowercase.
@@ -57,21 +61,22 @@ def main():
     # Load stopwords from nltk
     stop_words = set(stopwords.words('english'))
 
+    # Testing with a random string to see if it works.
     Test()
 
     # Read the provided CSV files
     fullTrainingSet = pd.read_csv('BBC_train_full.csv')
     testSet = pd.read_csv('test_data.csv')
 
-    # Apply preprocessing (including stopword removal and lemmatization) to the training and testing sets
+    # Apply preprocessing techniques to the training and testing sets
     fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text, stop_words))
     testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text, stop_words))
 
     # Save the preprocessed data to new CSV files
-    fullTrainingSet.to_csv('BBC_train_full_preprocessed_with_lemmatization.csv', index=False)
-    testSet.to_csv('test_data_preprocessed_with_lemmatization.csv', index=False)
+    fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
+    testSet.to_csv('test_data_preprocessed.csv', index=False)
 
-    print('\nSaved the training and test sets with stopwords removed and lemmatized.\n')
+    print('\nSuccessfuly preprocessed the data.\n')
 
 if __name__ == '__main__':
     main()
