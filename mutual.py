@@ -22,17 +22,13 @@ def get_wordnet_pos(tag):
     else:
         return wordnet.NOUN  # Default to noun if no match
 
-# Function to test preprocessing on a random string
-def Test():
-    test = 'Thi s is a TeSTING str ing, 5 symbols like % $ ( ) and numbers 123. . . '
-    print('\nOriginal string: ' + test)
+# Function that will preprocess the data so that the ML models can use it.
+# Removes numbers, removes symbols, makes all text lowercase,
+# tokenizes the text, removes stopwords, and applies lemmatization. 
+def PreprocessText(text):
 
+    # Load stopwords from nltk
     stop_words = set(stopwords.words('english'))
-    preProcessedTest = PreprocessText(test, stop_words)
-    print('Preprocessed: ', preProcessedTest)
-
-# Function that will clean the data so that the models can use it.
-def PreprocessText(text, stop_words):
 
     # Remove numbers and symbols from the data.
     text = re.sub(r'[^a-zA-Z\s]', '', text)
@@ -58,19 +54,14 @@ def PreprocessText(text, stop_words):
     return tokenizedData  # Return the lemmatized data as a list
 
 def main():
-    # Load stopwords from nltk
-    stop_words = set(stopwords.words('english'))
-
-    # Testing with a random string to see if it works.
-    Test()
 
     # Read the provided CSV files
     fullTrainingSet = pd.read_csv('BBC_train_full.csv')
     testSet = pd.read_csv('test_data.csv')
 
     # Apply preprocessing techniques to the training and testing sets
-    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text, stop_words))
-    testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text, stop_words))
+    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text))
+    testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text))
 
     # Save the preprocessed data to new CSV files
     fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
