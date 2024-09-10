@@ -6,6 +6,10 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report, accuracy_score
+
 # Initialize the lemmatizer
 lemmatizer = WordNetLemmatizer()
 
@@ -53,11 +57,55 @@ def PreprocessText(text):
 
     return tokenizedData  # Return the lemmatized data as a list
 
+# Function that uses the Naive Bayes model for news classification.
+def naiveBayes(trainingSet, testSet, testLabels):
+    
+    # Obtain the data that corresponds to each labeled column in the sets.
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # We currently have our sets tokenized. We must convert them back to a single string
+    # for the count vectorizer to be used.
+    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
+    testText = testText.apply(lambda tokens: ' '.join(tokens))
+
+    # Count vectorizers converts the string to numerical format. This
+    # is the Bag of Words model that will be used for Naive Bayes classification.
+    # It uses term frequency rather than word order and context.
+    # fit transform learns the vocab of the training set and transforms into a matrix
+    # of word frequency.
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText) 
+
+    # Train the Multinomial Naive Bayes model. It expects word counts which
+    # we already have thanks to the count vectorizer. We will train the model
+    # using the vectorized training set and its categories. It estimates
+    # the likelihood of each category given the word frequencies.
+    naiveClassifier = MultinomialNB()
+    naiveClassifier.fit(trainingTextVector, trainingCategory)
+
+    # Now predict the categories of the news articles in the test set by
+    # using their word frequencies (vectorized test set).
+    categoryPredictions = naiveClassifier.predict(testTextVector)
+
+    # Evaluate the classifications by comparing the predictions to
+    # the actual labels data set we were provided. The classification
+    # report will give the precision, recall, and F1-score.
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions, target_names = ['business', 'entertainment', 'politics', 'sport', 'tech'])
+
+    # Print the info. Accuracy is formatted to two decimal places.
+    print('\nAccuracy: {:.2f}%'.format(accuracy * 100))
+    print('\nClassification Report:\n', report)
+
 def main():
 
     # Read the provided CSV files
     fullTrainingSet = pd.read_csv('BBC_train_full.csv')
     testSet = pd.read_csv('test_data.csv')
+    testLabels = pd.read_csv('test_labels.csv')
 
     # Apply preprocessing techniques to the training and testing sets
     fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text))
@@ -66,8 +114,12 @@ def main():
     # Save the preprocessed data to new CSV files
     fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
     testSet.to_csv('test_data_preprocessed.csv', index=False)
-
     print('\nSuccessfuly preprocessed the data.\n')
+
+    # Use the Naive Bayes model and evaluate.
+    naiveBayes(fullTrainingSet, testSet, testLabels['category'])
+
+    
 
 if __name__ == '__main__':
     main()
