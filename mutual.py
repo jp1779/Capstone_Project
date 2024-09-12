@@ -94,11 +94,11 @@ def naiveBayes(trainingSet, testSet, testLabels):
     # the actual labels data set we were provided. The classification
     # report will give the precision, recall, and F1-score.
     accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions, target_names = ['business', 'entertainment', 'politics', 'sport', 'tech'])
+    report = classification_report(testLabels, categoryPredictions, target_names = ['0 (Business)', '1 (Entertainment)', ' 2(Politics)', '3 (Sport)', '4 (Tech)'])
 
     # Print the info. Accuracy is formatted to two decimal places.
-    print('\nAccuracy: {:.2f}%'.format(accuracy * 100))
-    print('\nClassification Report:\n', report)
+    print('\nNaive Bayes Accuracy: {:.2f}%'.format(accuracy * 100))
+    print('\nNaive Bayes Classification Report:\n', report)
 
 def main():
 
