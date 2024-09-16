@@ -3,7 +3,7 @@
 ### Group Members <br/>
 **Jorge Puga Hernandez**  
 **Avinash Pandey**  
-**Israel Oladeji**
+**Israel Oladeji**  
 **Brendan Tea**
 
 <br/>
@@ -32,9 +32,9 @@ To share slides/documents and communicate.
   Email: jpugaher@purdue.edu  
   Discord: .j.p
 
-**Brendan**
-  Email: bwtea@purdue.edu
-  Discord: tekejr
+**Brendan**  
+  Email: bwtea@purdue.edu  
+  Discord: tekejr  
   
 <br/>
 
