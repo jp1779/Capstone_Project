@@ -40,4 +40,3 @@ To share slides/documents and communicate.
 
 ### Additional Resources
 [CapstoneBookShortened.pdf](https://github.com/user-attachments/files/17000707/CapstoneBookShortened.pdf)
-
