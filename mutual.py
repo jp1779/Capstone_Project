@@ -1,5 +1,6 @@
 import re
 import pandas as pd
+import numpy as np
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -102,19 +103,31 @@ def naiveBayes(trainingSet, testSet, testLabels):
 
 def main():
 
-    # Read the provided CSV files
+    # Read the provided CSV files.
     fullTrainingSet = pd.read_csv('BBC_train_full.csv')
     testSet = pd.read_csv('test_data.csv')
     testLabels = pd.read_csv('test_labels.csv')
 
-    # Apply preprocessing techniques to the training and testing sets
+    # Apply preprocessing techniques to the training and testing sets.
     fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text))
     testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text))
 
-    # Save the preprocessed data to new CSV files
+    # Split the full training set into 3 equal-sized subsets.
+    # Full Entries: 1726. T1 Entries: 576. T2 Entries: 575. T3 Entries: 575.
+    trainingSet1, trainingSet2, trainingSet3 = np.array_split(fullTrainingSet, 3)
+    trainingSet3RemovedLabels = trainingSet3.drop(columns = ['category'])
+    trainingSet3Labels = trainingSet3['category']
+
+    # Save the preprocessed data to new CSV files.
     fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
     testSet.to_csv('test_data_preprocessed.csv', index=False)
     print('\nSuccessfuly preprocessed the data.\n')
+
+    ### Uncomment the 4 lines below to check if the data was split properly (it is).
+    #trainingSet1.to_csv('train1Check.csv', index=False)
+    #trainingSet2.to_csv('train2Check.csv', index=False)
+    #trainingSet3RemovedLabels.to_csv('train3LabelessCheck.csv', index=False)
+    #trainingSet3Labels.to_csv('train3LabelsOnlyCheck.csv', index=False)
 
     # Use the Naive Bayes model and evaluate.
     naiveBayes(fullTrainingSet, testSet, testLabels['category'])
