@@ -36,9 +36,10 @@ To share slides/documents and communicate.
   Email: bwtea@purdue.edu  
   Discord: tekejr  
 
-**Israel**
-  Email: ioladeji@purdue.edu
-  Discord: LuCID
+**Israel**  
+  Email: ioladeji@purdue.edu  
+  Discord: LuCID  
+
   
 <br/>
 
