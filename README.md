@@ -35,6 +35,10 @@ To share slides/documents and communicate.
 **Brendan**  
   Email: bwtea@purdue.edu  
   Discord: tekejr  
+
+**Israel**
+  Email: ioladeji@purdue.edu
+  Discord: LuCID
   
 <br/>
 
