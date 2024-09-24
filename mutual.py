@@ -8,14 +8,12 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import classification_report, accuracy_score
-from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.metrics import classification_report, accuracy_score
 
 # Initialize the lemmatizer
 lemmatizer = WordNetLemmatizer()
-
 
 # Function to map NLTK POS tags to WordNet POS tags
 def get_wordnet_pos(tag):
@@ -30,11 +28,11 @@ def get_wordnet_pos(tag):
     else:
         return wordnet.NOUN  # Default to noun if no match
 
-
 # Function that will preprocess the data so that the ML models can use it.
 # Removes numbers, removes symbols, makes all text lowercase,
 # tokenizes the text, removes stopwords, and applies lemmatization.
 def PreprocessText(text):
+
     # Load stopwords from nltk
     stop_words = set(stopwords.words('english'))
 
@@ -61,121 +59,81 @@ def PreprocessText(text):
 
     return tokenizedData  # Return the lemmatized data as a list
 
+# Function to predict labels and return probabilities
+def predict_with_probabilities(svmModel, vectorizedText):
+    # We are using CalibratedClassifierCV to get probability estimates
+    calibratedModel = CalibratedClassifierCV(svmModel)
+    calibratedModel.fit(vectorizedText, svmModel.predict(vectorizedText))
+    return calibratedModel.predict(vectorizedText), calibratedModel.predict_proba(vectorizedText)
 
-# Function that uses the Naive Bayes model for news classification.
-def naiveBayes(trainingSet, testSet, testLabels):
-    # Obtain the data that corresponds to each labeled column in the sets.
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
+# Function to relabel Training Set 3 based on highest confidence from both SVM models
+def relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer):
+    # Train Linear SVM on Training Set 1
+    linearSVM = SVC(kernel='linear', probability=True)
+    trainingTextVector = vectorizer.transform(trainingSet1['text'])
+    linearSVM.fit(trainingTextVector, trainingSet1['category'])
 
-    # We currently have our sets tokenized. We must convert them back to a single string
-    # for the count vectorizer to be used.
-    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
-    testText = testText.apply(lambda tokens: ' '.join(tokens))
+    # Train Non-Linear SVM (Sigmoid Kernel) on Training Set 1
+    nonLinearSVM = SVC(kernel='sigmoid', probability=True)
+    nonLinearSVM.fit(trainingTextVector, trainingSet1['category'])
 
-    # We convert the string to numerical format. This is the Bag of Words processing
-    # that will be used for Naive Bayes classification. Fit transform learns the vocab
-    # of the training set and transforms into a matrix of word frequency.
+    # Vectorize the text from Training Set 3
+    trainingSet3Vector = vectorizer.transform(trainingSet3RemovedLabels['text'])
+
+    # Get predictions and probabilities from both models
+    linear_predictions, linear_probabilities = predict_with_probabilities(linearSVM, trainingSet3Vector)
+    non_linear_predictions, non_linear_probabilities = predict_with_probabilities(nonLinearSVM, trainingSet3Vector)
+
+    # Relabel Training Set 3 based on the model with the highest confidence
+    new_labels = []
+    for i in range(len(trainingSet3RemovedLabels)):
+        if max(linear_probabilities[i]) > max(non_linear_probabilities[i]):
+            new_labels.append(linear_predictions[i])  # Use label from linear SVM
+        else:
+            new_labels.append(non_linear_predictions[i])  # Use label from non-linear SVM
+
+    # Add the new labels to Training Set 3 and return
+    trainingSet3RemovedLabels['category'] = new_labels
+    return trainingSet3RemovedLabels
+
+# Function to retrain and evaluate the SVM models
+def retrainAndEvaluate(trainingSet1, trainingSet3Relabeled, testSet, testLabels):
+    # Combine Training Set 1 and the newly labeled Training Set 3
+    combinedTrainingSet = pd.concat([trainingSet1, trainingSet3Relabeled])
+
+    # Vectorize the combined dataset
     vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
+    combinedTextVector = vectorizer.fit_transform(combinedTrainingSet['text'])
+    testTextVector = vectorizer.transform(testSet['text'])
 
-    # Train the Multinomial Naive Bayes model.It estimates the likelihood
-    # of each category given the word frequencies.
-    naiveClassifier = MultinomialNB()
-    naiveClassifier.fit(trainingTextVector, trainingCategory)
+    # Retrain Linear SVM
+    linearSVM = SVC(kernel='linear')
+    linearSVM.fit(combinedTextVector, combinedTrainingSet['category'])
+    linear_predictions = linearSVM.predict(testTextVector)
 
-    # Now predict the categories of the news articles in the test set by
-    # using their word frequencies (vectorized test set).
-    categoryPredictions = naiveClassifier.predict(testTextVector)
+    # Retrain Non-Linear SVM (Sigmoid Kernel)
+    nonLinearSVM = SVC(kernel='sigmoid')
+    nonLinearSVM.fit(combinedTextVector, combinedTrainingSet['category'])
+    non_linear_predictions = nonLinearSVM.predict(testTextVector)
 
-    # Evaluate the classifications by comparing the predictions to
-    # the actual labels data set we were provided. The classification
-    # report will give the precision, recall, and F1-score.
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions,
-                                   target_names=['0 (Business)', '1 (Entertainment)', ' 2(Politics)', '3 (Sport)',
-                                                 '4 (Tech)'])
+    # Evaluate both models
+    linear_accuracy = accuracy_score(testLabels, linear_predictions)
+    non_linear_accuracy = accuracy_score(testLabels, non_linear_predictions)
 
-    # Print the info. Accuracy is formatted to two decimal places.
-    print('\nNaive Bayes Accuracy: {:.2f}%'.format(accuracy * 100))
-    print('\nNaive Bayes Classification Report:\n', report)
+    linear_report = classification_report(testLabels, linear_predictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    non_linear_report = classification_report(testLabels, non_linear_predictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
 
+    # Print results
+    print(f'\nRetrained Linear SVM Accuracy: {linear_accuracy * 100:.2f}%')
+    print(f'Retrained Linear SVM Classification Report:\n{linear_report}')
 
-# Function that uses a MLP neural network for news classifcation.
-# The process is essentially the same as Naive Bayes.
-def neuralNetwork(trainingSet, testSet, testLabels):
-    # Obtain the data.
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
+    print(f'\nRetrained Non-Linear SVM (Sigmoid) Accuracy: {non_linear_accuracy * 100:.2f}%')
+    print(f'Retrained Non-Linear SVM Classification Report:\n{non_linear_report}')
 
-    # Convert the tokenized rows back into strings.
-    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
-    testText = testText.apply(lambda tokens: ' '.join(tokens))
-
-    # Learn vocab and transform to word count vector.
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
-
-    # Train the MLP Nueral Network. It will have two hidden layers with 100 neurons
-    # in both. There are 500 maximum iterations before conversion.
-    mlpModel = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500, random_state=1)
-    mlpModel.fit(trainingTextVector, trainingCategory)
-
-    # Predict the categories of the news.
-    categoryPredictions = mlpModel.predict(testTextVector)
-
-    # Evaluate
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions,
-                                   target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)',
-                                                 '4 (Tech)'])
-
-    # Print the info
-    print('\nMLP Neural Network Accuracy: {:.2f}%'.format(accuracy * 100))
-    print('\nMLP Neural Network Classification Report:\n', report)
-
-
-# Function to train and evaluate the SVM model
-def trainSVM(trainingSet, testSet, testLabels, kernel_type):
-    # Obtain the data.
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
-
-    # Convert the tokenized rows back into strings.
-    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
-    testText = testText.apply(lambda tokens: ' '.join(tokens))
-
-    # Learn vocab and transform to word count vector.
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
-
-    # Train the SVM model
-    svmModel = SVC(kernel=kernel_type)
-    svmModel.fit(trainingTextVector, trainingCategory)
-
-    # Predict the categories of the news.
-    categoryPredictions = svmModel.predict(testTextVector)
-
-    # Evaluate the performance
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions,
-                                   target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)',
-                                                 '4 (Tech)'])
-
-    # Print the info
-    print(f'\nSVM ({kernel_type}) Accuracy: {accuracy * 100:.2f}%')
-    print(f'\nSVM ({kernel_type}) Classification Report:\n', report)
-
-    return accuracy
-
+    return linear_accuracy, non_linear_accuracy
 
 def main():
+
     # Read the provided CSV files.
     fullTrainingSet = pd.read_csv('BBC_train_full.csv')
     testSet = pd.read_csv('test_data.csv')
@@ -185,29 +143,34 @@ def main():
     fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text))
     testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text))
 
+    # Convert tokenized text back to a single string (join tokens)
+    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda tokens: ' '.join(tokens))
+    testSet['text'] = testSet['text'].apply(lambda tokens: ' '.join(tokens))
+
     # Split the full training set into 3 equal-sized subsets.
     trainingSet1, trainingSet2, trainingSet3 = np.array_split(fullTrainingSet, 3)
-    trainingSet3RemovedLabels = trainingSet3.drop(columns=['category'])
-    trainingSet3Labels = trainingSet3['category']
+    trainingSet3RemovedLabels = trainingSet3.drop(columns=['category'])  # Ensure labels are removed
 
     # Save the preprocessed data to new CSV files.
     fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
     testSet.to_csv('test_data_preprocessed.csv', index=False)
     print('\nSuccessfully preprocessed the data.\n')
 
-    # Naive Bayes and MLP models
-    naiveBayes(fullTrainingSet, testSet, testLabels['category'])
-    neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
+    # Vectorize the text in trainingSet1
+    vectorizer = CountVectorizer()
+    vectorizer.fit(trainingSet1['text'])
 
-    # SVM models (Part 1)
-    linear_svm_accuracy = trainSVM(trainingSet1, testSet, testLabels['category'], kernel_type='linear')
-    non_linear_svm_accuracy = trainSVM(trainingSet1, testSet, testLabels['category'], kernel_type='sigmoid')
+    # Relabel Training Set 3 based on SVM confidence
+    relabeled_trainingSet3 = relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer)
+    print('\nSuccessfully relabeled Training Set 3.\n')
 
-    # Print the results in a table
-    print("\nSVM Model Accuracies:")
-    print(f"Linear SVM: {linear_svm_accuracy * 100:.2f}%")
-    print(f"Non-linear SVM (Sigmoid Kernel): {non_linear_svm_accuracy * 100:.2f}%")
+    # Retrain both SVM models and evaluate them on the test set
+    linear_accuracy, non_linear_accuracy = retrainAndEvaluate(trainingSet1, relabeled_trainingSet3, testSet, testLabels['category'])
 
+    # Print the results in a table format
+    print("\nRetrained SVM Model Accuracies:")
+    print(f"Linear SVM: {linear_accuracy * 100:.2f}%")
+    print(f"Non-linear SVM (Sigmoid Kernel): {non_linear_accuracy * 100:.2f}%")
 
 if __name__ == '__main__':
     main()
