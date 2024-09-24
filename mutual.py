@@ -68,10 +68,6 @@ def naiveBayes(trainingSet, testSet, testLabels):
     trainingCategory = trainingSet['category']
     testText = testSet['text']
 
-    # Convert the tokenized data back into strings
-    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
-    testText = testText.apply(lambda tokens: ' '.join(tokens))
-
     # Vectorize the text
     vectorizer = CountVectorizer()
     trainingTextVector = vectorizer.fit_transform(trainingText)
@@ -96,10 +92,6 @@ def neuralNetwork(trainingSet, testSet, testLabels):
     trainingText = trainingSet['text']
     trainingCategory = trainingSet['category']
     testText = testSet['text']
-
-    # Convert the tokenized data back into strings
-    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
-    testText = testText.apply(lambda tokens: ' '.join(tokens))
 
     # Vectorize the text
     vectorizer = CountVectorizer()
