@@ -8,9 +8,11 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.metrics import classification_report, accuracy_score
 
 # Initialize the lemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -39,7 +41,7 @@ def PreprocessText(text):
     # Remove numbers and symbols from the data.
     text = re.sub(r'[^a-zA-Z\s]', '', text)
 
-    # Remove consecutive blank spaces between words and trailing/leading whitspace.
+    # Remove consecutive blank spaces between words and trailing/leading whitespace.
     text = re.sub(r'\s+', ' ', text).strip()
 
     # Makes the text lowercase.
@@ -59,9 +61,67 @@ def PreprocessText(text):
 
     return tokenizedData  # Return the lemmatized data as a list
 
+# Naive Bayes Model
+def naiveBayes(trainingSet, testSet, testLabels):
+    # Obtain the data
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Convert the tokenized data back into strings
+    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
+    testText = testText.apply(lambda tokens: ' '.join(tokens))
+
+    # Vectorize the text
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the Naive Bayes model
+    naiveClassifier = MultinomialNB()
+    naiveClassifier.fit(trainingTextVector, trainingCategory)
+
+    # Predict and evaluate
+    categoryPredictions = naiveClassifier.predict(testTextVector)
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Print results
+    print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nNaive Bayes Classification Report:\n{report}')
+
+# MLP Model
+def neuralNetwork(trainingSet, testSet, testLabels):
+    # Obtain the data
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Convert the tokenized data back into strings
+    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
+    testText = testText.apply(lambda tokens: ' '.join(tokens))
+
+    # Vectorize the text
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the MLP Neural Network
+    mlpModel = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500, random_state=1)
+    mlpModel.fit(trainingTextVector, trainingCategory)
+
+    # Predict and evaluate
+    categoryPredictions = mlpModel.predict(testTextVector)
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Print results
+    print(f'\nMLP Neural Network Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nMLP Neural Network Classification Report:\n{report}')
+
 # Function to predict labels and return probabilities
 def predict_with_probabilities(svmModel, vectorizedText):
-    # We are using CalibratedClassifierCV to get probability estimates
+    # Use CalibratedClassifierCV to get probability estimates
     calibratedModel = CalibratedClassifierCV(svmModel)
     calibratedModel.fit(vectorizedText, svmModel.predict(vectorizedText))
     return calibratedModel.predict(vectorizedText), calibratedModel.predict_proba(vectorizedText)
@@ -155,6 +215,12 @@ def main():
     fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
     testSet.to_csv('test_data_preprocessed.csv', index=False)
     print('\nSuccessfully preprocessed the data.\n')
+
+    # Naive Bayes Model
+    naiveBayes(fullTrainingSet, testSet, testLabels['category'])
+
+    # MLP Neural Network Model
+    neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
 
     # Vectorize the text in trainingSet1
     vectorizer = CountVectorizer()
