@@ -41,7 +41,7 @@ To share slides/documents and communicate.
   Discord: LuCID  
 
   **Avinash**
-  Email: aopandey@purdue.edu
+  Email: aopandey@purdue.edu  
   Discord: Archer
 
   
