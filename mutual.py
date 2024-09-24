@@ -10,6 +10,7 @@ from nltk.corpus import wordnet
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import classification_report, accuracy_score
+from sklearn.neural_network import MLPClassifier
 
 # Initialize the lemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -71,19 +72,15 @@ def naiveBayes(trainingSet, testSet, testLabels):
     trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
     testText = testText.apply(lambda tokens: ' '.join(tokens))
 
-    # Count vectorizers converts the string to numerical format. This
-    # is the Bag of Words model that will be used for Naive Bayes classification.
-    # It uses term frequency rather than word order and context.
-    # fit transform learns the vocab of the training set and transforms into a matrix
-    # of word frequency.
+    # We convert the string to numerical format. This is the Bag of Words processing 
+    # that will be used for Naive Bayes classification. Fit transform learns the vocab 
+    # of the training set and transforms into a matrix of word frequency.
     vectorizer = CountVectorizer()
     trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText) 
+    testTextVector = vectorizer.transform(testText)
 
-    # Train the Multinomial Naive Bayes model. It expects word counts which
-    # we already have thanks to the count vectorizer. We will train the model
-    # using the vectorized training set and its categories. It estimates
-    # the likelihood of each category given the word frequencies.
+    # Train the Multinomial Naive Bayes model.It estimates the likelihood 
+    # of each category given the word frequencies.
     naiveClassifier = MultinomialNB()
     naiveClassifier.fit(trainingTextVector, trainingCategory)
 
@@ -100,6 +97,40 @@ def naiveBayes(trainingSet, testSet, testLabels):
     # Print the info. Accuracy is formatted to two decimal places.
     print('\nNaive Bayes Accuracy: {:.2f}%'.format(accuracy * 100))
     print('\nNaive Bayes Classification Report:\n', report)
+
+# Function that uses a MLP neural network for news classifcation.
+# The process is essentially the same as Naive Bayes.
+def neuralNetwork(trainingSet, testSet, testLabels):
+
+    # Obtain the data.
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Convert the tokenized rows back into strings.
+    trainingText = trainingText.apply(lambda tokens: ' '.join(tokens))
+    testText = testText.apply(lambda tokens: ' '.join(tokens))
+
+    # Learn vocab and transform to word count vector.
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the MLP Nueral Network. It will have two hidden layers with 100 neurons
+    # in both. There are 500 maximum iterations before conversion.
+    mlpModel = MLPClassifier(hidden_layer_sizes = (100,100), max_iter = 500, random_state = 1)
+    mlpModel.fit(trainingTextVector, trainingCategory)
+
+    # Predict the categories of the news.
+    categoryPredictions = mlpModel.predict(testTextVector)
+
+    # Evaluate
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions, target_names = ['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Print the info
+    print('\nMLP Nueral Network Accuracy: {:.2f}%'.format(accuracy * 100))
+    print('\nMLP Nueral Network Classifcation Report:\n', report)
 
 def main():
 
@@ -123,16 +154,14 @@ def main():
     testSet.to_csv('test_data_preprocessed.csv', index=False)
     print('\nSuccessfuly preprocessed the data.\n')
 
-    ### Uncomment the 4 lines below to check if the data was split properly (it is).
-    #trainingSet1.to_csv('train1Check.csv', index=False)
-    #trainingSet2.to_csv('train2Check.csv', index=False)
-    #trainingSet3RemovedLabels.to_csv('train3LabelessCheck.csv', index=False)
-    #trainingSet3Labels.to_csv('train3LabelsOnlyCheck.csv', index=False)
-
     # Use the Naive Bayes model and evaluate.
     naiveBayes(fullTrainingSet, testSet, testLabels['category'])
+    #naiveBayes(trainingSet1, testSet, testLabels['category'])
+    #naiveBayes(trainingSet2, testSet, testLabels['category'])
 
-    
+    neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
+    #neuralNetwork(trainingSet1, testSet, testLabels['category'])
+    #neuralNetwork(trainingSet2, testSet, testLabels['category'])
 
 if __name__ == '__main__':
     main()
