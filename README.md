@@ -40,9 +40,9 @@ To share slides/documents and communicate.
   Email: ioladeji@purdue.edu  
   Discord: LuCID  
 
-  **Avinash**
+  **Avinash**  
   Email: aopandey@purdue.edu  
-  Discord: Archer
+  Discord: Archer  
 
   
 <br/>
