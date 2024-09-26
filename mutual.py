@@ -63,6 +63,7 @@ def PreprocessText(text):
 
 # Naive Bayes Model
 def naiveBayes(trainingSet, testSet, testLabels):
+
     # Obtain the data
     trainingText = trainingSet['text']
     trainingCategory = trainingSet['category']
@@ -88,6 +89,7 @@ def naiveBayes(trainingSet, testSet, testLabels):
 
 # MLP Model
 def neuralNetwork(trainingSet, testSet, testLabels):
+
     # Obtain the data
     trainingText = trainingSet['text']
     trainingCategory = trainingSet['category']
@@ -99,7 +101,7 @@ def neuralNetwork(trainingSet, testSet, testLabels):
     testTextVector = vectorizer.transform(testText)
 
     # Train the MLP Neural Network
-    mlpModel = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500, random_state=1)
+    mlpModel = MLPClassifier(hidden_layer_sizes = (100, 100), max_iter = 500, random_state = 1)
     mlpModel.fit(trainingTextVector, trainingCategory)
 
     # Predict and evaluate
@@ -184,6 +186,37 @@ def retrainAndEvaluate(trainingSet1, trainingSet3Relabeled, testSet, testLabels)
 
     return linear_accuracy, non_linear_accuracy
 
+# Function to train and evaluate the SVM model
+def trainSVM(trainingSet, testSet, testLabels, kernel_type):
+
+    # Obtain the data.
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Learn vocab and transform to word count vector.
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the SVM model
+    svmModel = SVC(kernel=kernel_type)
+    svmModel.fit(trainingTextVector, trainingCategory)
+    
+    # Predict the categories of the news.
+    categoryPredictions = svmModel.predict(testTextVector)
+
+    # Evaluate the performance
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions,
+                                   target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)',
+                                                 '4 (Tech)'])
+    # Print the info
+    print(f'\nSVM ({kernel_type}) Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nSVM ({kernel_type}) Classification Report:\n', report)
+
+    return accuracy
+
 def main():
 
     # Read the provided CSV files.
@@ -208,27 +241,33 @@ def main():
     testSet.to_csv('test_data_preprocessed.csv', index=False)
     print('\nSuccessfully preprocessed the data.\n')
 
-    # Naive Bayes Model
+    # Full Naive Bayes Model
     naiveBayes(fullTrainingSet, testSet, testLabels['category'])
 
-    # MLP Neural Network Model
+    # Full MLP Neural Network Model
     neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
 
+    # Full SVM models
+    trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='linear')
+    trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='sigmoid')
+
+ 
+
     # Vectorize the text in trainingSet1
-    vectorizer = CountVectorizer()
-    vectorizer.fit(trainingSet1['text'])
+    #vectorizer = CountVectorizer()
+    #vectorizer.fit(trainingSet1['text'])
 
     # Relabel Training Set 3 based on SVM confidence
-    relabeled_trainingSet3 = relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer)
-    print('\nSuccessfully relabeled Training Set 3.\n')
+    #relabeled_trainingSet3 = relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer)
+    #print('\nSuccessfully relabeled Training Set 3.\n')
 
     # Retrain both SVM models and evaluate them on the test set
-    linear_accuracy, non_linear_accuracy = retrainAndEvaluate(trainingSet1, relabeled_trainingSet3, testSet, testLabels['category'])
+    #linear_accuracy, non_linear_accuracy = retrainAndEvaluate(trainingSet1, relabeled_trainingSet3, testSet, testLabels['category'])
 
     # Print the results in a table format
-    print("\nRetrained SVM Model Accuracies:")
-    print(f"Linear SVM: {linear_accuracy * 100:.2f}%")
-    print(f"Non-linear SVM (Sigmoid Kernel): {non_linear_accuracy * 100:.2f}%")
+    #print("\nRetrained SVM Model Accuracies:")
+    #print(f"Linear SVM: {linear_accuracy * 100:.2f}%")
+    #print(f"Non-linear SVM (Sigmoid Kernel): {non_linear_accuracy * 100:.2f}%")
 
 if __name__ == '__main__':
     main()
