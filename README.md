@@ -47,5 +47,10 @@ To share slides/documents and communicate.
   
 <br/>
 
+### Project Segment Visuals
+![processMutualLearning](https://github.com/user-attachments/assets/bf5df7a7-a30c-4ddc-a730-26762934d03c)
+![dataPreprocessing](https://github.com/user-attachments/assets/13f2273a-8d9a-47bc-8cdc-d4bc9d04c421)
+
+
 ### Additional Resources
 [CapstoneBookShortened.pdf](https://github.com/user-attachments/files/17000707/CapstoneBookShortened.pdf)
