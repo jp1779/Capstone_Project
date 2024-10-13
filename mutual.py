@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import nltk
 from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
@@ -16,6 +17,9 @@ from sklearn.calibration import CalibratedClassifierCV
 
 # Initialize the lemmatizer
 lemmatizer = WordNetLemmatizer()
+
+# Initialize the stemmer
+stemmer = PorterStemmer()
 
 # Function to map NLTK POS tags to WordNet POS tags
 def get_wordnet_pos(tag):
@@ -55,6 +59,9 @@ def PreprocessText(text):
 
     # Get POS tags for each token
     pos_tags = nltk.pos_tag(tokenizedData)
+
+    # Apply stemming
+    tokenizedData = [stemmer.stem(word, get_wordnet_pos(tag)) for word, tag in pos_tags]
 
     # Apply lemmatization with the correct POS tag
     tokenizedData = [lemmatizer.lemmatize(word, get_wordnet_pos(tag)) for word, tag in pos_tags]
