@@ -11,14 +11,9 @@ from nltk.corpus import wordnet
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import classification_report, accuracy_score
-from sklearn.neural_network import MLPClassifier
-from sklearn.svm import SVC
-from sklearn.calibration import CalibratedClassifierCV
 
-# Initialize the lemmatizer
+# Initialize the lemmatizer and stemmer
 lemmatizer = WordNetLemmatizer()
-
-# Initialize the stemmer
 stemmer = PorterStemmer()
 
 # Function to map NLTK POS tags to WordNet POS tags
@@ -34,43 +29,34 @@ def get_wordnet_pos(tag):
     else:
         return wordnet.NOUN  # Default to noun if no match
 
-# Function that will preprocess the data so that the ML models can use it.
-# Removes numbers, removes symbols, makes all text lowercase,
-# tokenizes the text, removes stopwords, and applies lemmatization.
+# Function to preprocess text
 def PreprocessText(text):
-
     # Load stopwords from nltk
     stop_words = set(stopwords.words('english'))
 
-    # Remove numbers and symbols from the data.
+    # Remove numbers and symbols from the data
     text = re.sub(r'[^a-zA-Z\s]', '', text)
 
-    # Remove consecutive blank spaces between words and trailing/leading whitespace.
-    text = re.sub(r'\s+', ' ', text).strip()
+    # Remove consecutive blank spaces and make text lowercase
+    text = re.sub(r'\s+', ' ', text).strip().lower()
 
-    # Makes the text lowercase.
-    text = text.lower()
-
-    # Tokenize the data using nltk's word_tokenize.
+    # Tokenize the data
     tokenizedData = word_tokenize(text)
 
-    # Remove stopwords from the tokenized data.
+    # Remove stopwords
     tokenizedData = [word for word in tokenizedData if word not in stop_words]
 
-    # Get POS tags for each token
+    # Get POS tags
     pos_tags = nltk.pos_tag(tokenizedData)
 
-    # Apply stemming
-    tokenizedData = [stemmer.stem(word, get_wordnet_pos(tag)) for word, tag in pos_tags]
-
-    # Apply lemmatization with the correct POS tag
+    # Apply stemming and lemmatization
+    tokenizedData = [stemmer.stem(word) for word in tokenizedData]
     tokenizedData = [lemmatizer.lemmatize(word, get_wordnet_pos(tag)) for word, tag in pos_tags]
 
-    return ' '.join(lemmatized_tokens)  # Return the lemmatized data as a list
+    return tokenizedData  # Return the processed data as a list
 
-# Naive Bayes Model
+# Naive Bayes Model function
 def naiveBayes(trainingSet, testSet, testLabels):
-
     # Obtain the data
     trainingText = trainingSet['text']
     trainingCategory = trainingSet['category']
@@ -88,175 +74,86 @@ def naiveBayes(trainingSet, testSet, testLabels):
     # Predict and evaluate
     categoryPredictions = naiveClassifier.predict(testTextVector)
     accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    report = classification_report(testLabels, categoryPredictions,
+                                   target_names=['0 (Business)', '1 (Entertainment)',
+                                                 '2 (Politics)', '3 (Sport)', '4 (Tech)'])
 
     # Print results
     print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
     print(f'\nNaive Bayes Classification Report:\n{report}')
 
-# Naive Bayes Model
-def naiveBayes(trainingSet, testSet, testLabels):
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
+    return naiveClassifier, vectorizer, accuracy, report
 
-    # Vectorize the text
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
+# Function to predict labels and posterior probabilities using Naive Bayes
+def predict_with_probabilities_nb(model, vectorizer, textData):
+    textVector = vectorizer.transform(textData)
+    predicted_labels = model.predict(textVector)
+    predicted_probabilities = model.predict_proba(textVector)
+    return predicted_labels, predicted_probabilities
 
-    # Train the Naive Bayes model
-    naiveClassifier = MultinomialNB()
-    naiveClassifier.fit(trainingTextVector, trainingCategory)
+def main():
+    # Read the provided CSV files
+    fullTrainingSet = pd.read_csv('BBC_train_full.csv')
+    testSet = pd.read_csv('test_data.csv')
+    testLabels = pd.read_csv('test_labels.csv')
 
-    # Predict and evaluate
-    categoryPredictions = naiveClassifier.predict(testTextVector)
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    # Apply preprocessing to the training and testing sets
+    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text))
+    testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text))
 
-    print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
-    print(f'\nNaive Bayes Classification Report:\n{report}')
-    return accuracy
+    # Convert tokenized text back to a single string
+    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda tokens: ' '.join(tokens))
+    testSet['text'] = testSet['text'].apply(lambda tokens: ' '.join(tokens))
 
-# MLP Neural Network Model
-def neuralNetwork(trainingSet, testSet, testLabels):
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
+    # Split the full training set into 3 equal-sized subsets
+    trainingSet1, trainingSet2, trainingSet3 = np.array_split(fullTrainingSet, 3)
 
-    # Vectorize the text
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
+    # Part 1: Train Naive Bayes models on trainingSet1 and trainingSet2
+    print("\nTraining Naive Bayes model on Training Set 1")
+    model1, vectorizer1, accuracy1, report1 = naiveBayes(trainingSet1, testSet, testLabels['category'])
 
-    # Train the MLP Neural Network
-    mlpModel = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500, random_state=1)
-    mlpModel.fit(trainingTextVector, trainingCategory)
+    print("\nTraining Naive Bayes model on Training Set 2")
+    model2, vectorizer2, accuracy2, report2 = naiveBayes(trainingSet2, testSet, testLabels['category'])
 
-    # Predict and evaluate
-    categoryPredictions = mlpModel.predict(testTextVector)
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    # Part 2: Mutual Learning between the two Naive Bayes models
+    # Remove labels from trainingSet3
+    trainingSet3NoLabels = trainingSet3.drop(columns=['category'])
 
-    print(f'\nMLP Neural Network Accuracy: {accuracy * 100:.2f}%')
-    print(f'\nMLP Neural Network Classification Report:\n{report}')
-    return accuracy
+    # Use both models to predict labels and probabilities for trainingSet3
+    labels1, probs1 = predict_with_probabilities_nb(model1, vectorizer1, trainingSet3NoLabels['text'])
+    labels2, probs2 = predict_with_probabilities_nb(model2, vectorizer2, trainingSet3NoLabels['text'])
 
-# SVM Model
-def trainSVM(trainingSet, testSet, testLabels, kernel_type):
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
-
-    # Vectorize the text
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
-
-    # Train the SVM model
-    svmModel = SVC(kernel=kernel_type, probability=True)
-    svmModel.fit(trainingTextVector, trainingCategory)
-
-    # Predict and evaluate
-    categoryPredictions = svmModel.predict(testTextVector)
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
-
-    print(f'\nSVM ({kernel_type}) Accuracy: {accuracy * 100:.2f}%')
-    print(f'\nSVM ({kernel_type}) Classification Report:\n{report}')
-    return accuracy
-
-# Function to relabel Training Set 3 based on posterior probabilities
-def relabel_training_set(train1, train2, train3_no_labels, vectorizer):
-    train1_vector = vectorizer.transform(train1['text'])
-    train2_vector = vectorizer.transform(train2['text'])
-
-    nb_model_1 = MultinomialNB()
-    nb_model_1.fit(train1_vector, train1['category'])
-
-    nb_model_2 = MultinomialNB()
-    nb_model_2.fit(train2_vector, train2['category'])
-
-    train3_vector = vectorizer.transform(train3_no_labels['text'])
-    probs_model_1 = nb_model_1.predict_proba(train3_vector)
-    probs_model_2 = nb_model_2.predict_proba(train3_vector)
-
+    # For each data point, choose the label from the model with the highest confidence
     new_labels = []
-    for i in range(len(train3_no_labels)):
-        if max(probs_model_1[i]) > max(probs_model_2[i]):
-            new_labels.append(nb_model_1.predict(train3_vector[i])[0])
+    for i in range(len(trainingSet3NoLabels)):
+        max_prob1 = max(probs1[i])
+        max_prob2 = max(probs2[i])
+        if max_prob1 >= max_prob2:
+            new_labels.append(labels1[i])
         else:
-            new_labels.append(nb_model_2.predict(train3_vector[i])[0])
+            new_labels.append(labels2[i])
 
-    train3_no_labels['category'] = new_labels
-    return train3_no_labels
+    # Add the new labels to trainingSet3
+    trainingSet3NoLabels['category'] = new_labels
 
-# Function to retrain and evaluate models
-def retrain_and_evaluate(train1, relabeled_train3, test_set, test_labels, vectorizer):
-    combined_train = pd.concat([train1, relabeled_train3])
+    # Retrain both models using their original training sets plus the newly labeled trainingSet3
+    combinedSet1 = pd.concat([trainingSet1, trainingSet3NoLabels])
+    combinedSet2 = pd.concat([trainingSet2, trainingSet3NoLabels])
 
-    combined_vectors = vectorizer.fit_transform(combined_train['text'])
-    test_vectors = vectorizer.transform(test_set['text'])
+    print("\nRetraining Naive Bayes model 1 with Training Set 1 and newly labeled Training Set 3")
+    model1_retrained, vectorizer1_retrained, accuracy1_retrained, report1_retrained = naiveBayes(
+        combinedSet1, testSet, testLabels['category'])
 
-    final_nb_model = MultinomialNB()
-    final_nb_model.fit(combined_vectors, combined_train['category'])
-    final_predictions = final_nb_model.predict(test_vectors)
+    print("\nRetraining Naive Bayes model 2 with Training Set 2 and newly labeled Training Set 3")
+    model2_retrained, vectorizer2_retrained, accuracy2_retrained, report2_retrained = naiveBayes(
+        combinedSet2, testSet, testLabels['category'])
 
-    final_accuracy = accuracy_score(test_labels, final_predictions)
-    final_report = classification_report(test_labels, final_predictions)
+    # Report the initial and retrained accuracies
+    print(f"\nInitial Naive Bayes Model 1 Accuracy: {accuracy1 * 100:.2f}%")
+    print(f"Retrained Naive Bayes Model 1 Accuracy: {accuracy1_retrained * 100:.2f}%")
 
-    print(f"Final Naive Bayes Accuracy after mutual learning: {final_accuracy * 100:.2f}%")
-    print(f"\nFinal Naive Bayes Classification Report:\n{final_report}")
-
-# Main function with mutual learning toggle
-def main(mutual_learning_enabled=False):
-    train_data = pd.read_csv('BBC_train_full.csv')
-    test_data = pd.read_csv('test_data.csv')
-    test_labels = test_data['category']
-
-    print("Preprocessing data...")
-    train_data['text'] = train_data['text'].apply(preprocess_text)
-    test_data['text'] = test_data['text'].apply(preprocess_text)
-
-    train1, train2, train3 = np.array_split(train_data, 3)
-    train3_no_labels = train3.drop(columns=['category'])
-
-    print("Training Naive Bayes models...")
-    accuracy1, _, vectorizer1 = train_and_evaluate(train1, test_data, test_labels)
-    accuracy2, _, vectorizer2 = train_and_evaluate(train2, test_data, test_labels)
-
-    if mutual_learning_enabled:
-        print("Mutual learning enabled. Relabeling Training Set 3...")
-        relabeled_train3 = relabel_training_set(train1, train2, train3_no_labels, vectorizer1)
-        retrain_and_evaluate(train1, relabeled_train3, test_data, test_labels, vectorizer1)
-    else:
-        print("Mutual learning disabled. Running standard Naive Bayes on the full training set...")
-        combined_train = pd.concat([train1, train2, train3])
-        train_and_evaluate(combined_train, test_data, test_labels)
-
-    print("Running MLP Neural Network...")
-    neuralNetwork(train_data, test_data, test_labels)
-
-    print("Running SVM (Linear) model...")
-    trainSVM(train_data, test_data, test_labels, kernel_type='linear')
-
- 
-
-    # Vectorize the text in trainingSet1
-    #vectorizer = CountVectorizer()
-    #vectorizer.fit(trainingSet1['text'])
-
-    # Relabel Training Set 3 based on SVM confidence
-    #relabeled_trainingSet3 = relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer)
-    #print('\nSuccessfully relabeled Training Set 3.\n')
-
-    # Retrain both SVM models and evaluate them on the test set
-    #linear_accuracy, non_linear_accuracy = retrainAndEvaluate(trainingSet1, relabeled_trainingSet3, testSet, testLabels['category'])
-
-    # Print the results in a table format
-    #print("\nRetrained SVM Model Accuracies:")
-    #print(f"Linear SVM: {linear_accuracy * 100:.2f}%")
-    #print(f"Non-linear SVM (Sigmoid Kernel): {non_linear_accuracy * 100:.2f}%")
+    print(f"\nInitial Naive Bayes Model 2 Accuracy: {accuracy2 * 100:.2f}%")
+    print(f"Retrained Naive Bayes Model 2 Accuracy: {accuracy2_retrained * 100:.2f}%")
 
 if __name__ == '__main__':
-    main(mutual_learning_enabled=True)
+    main()
