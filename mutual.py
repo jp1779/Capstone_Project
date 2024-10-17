@@ -103,7 +103,7 @@ def neuralNetwork(trainingSet, testSet, testLabels):
     print(f'\nMLP Neural Network Classification Report:\n{report}')
 
 # Homogeneous MLP NN Training
-def mutalNeuralNetwork(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
+def mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
     
     # Vectorize the text
     vectorizer = CountVectorizer()
@@ -315,7 +315,7 @@ def main():
     trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='linear')
     trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='sigmoid')
 
-    mutalNeuralNetwork(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
+    mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
 
  
 
