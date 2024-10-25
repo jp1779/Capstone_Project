@@ -8,7 +8,7 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.neural_network import MLPClassifier
@@ -207,79 +207,60 @@ def trainSVM(trainingSet, testSet, testLabels, kernel_type):
     print(f'\nSVM ({kernel_type}) Classification Report:\n', report)
 
     return accuracy
+  
+  
+  
+  
+  
+  
+  
+      # Naive Bayes Model function
+def naiveBayes(trainingSet, testSet, testLabels, use_tfidf=False):
+    # Obtain the data
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
 
-# SVM Function to predict labels and return probabilities
-def predict_with_probabilities(svmModel, vectorizedText):
-    # Use CalibratedClassifierCV to get probability estimates
-    calibratedModel = CalibratedClassifierCV(svmModel)
-    calibratedModel.fit(vectorizedText, svmModel.predict(vectorizedText))
-    return calibratedModel.predict(vectorizedText), calibratedModel.predict_proba(vectorizedText)
+    # Vectorize the text
+    if use_tfidf:
+        vectorizer = TfidfVectorizer()
+    else:
+        vectorizer = CountVectorizer()
 
-# SVM Function to relabel Training Set 3 based on highest confidence from both SVM models
-def relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer):
-    # Train Linear SVM on Training Set 1
-    linearSVM = SVC(kernel='linear', probability=True)
-    trainingTextVector = vectorizer.transform(trainingSet1['text'])
-    linearSVM.fit(trainingTextVector, trainingSet1['category'])
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
 
-    # Train Non-Linear SVM (Sigmoid Kernel) on Training Set 1
-    nonLinearSVM = SVC(kernel='sigmoid', probability=True)
-    nonLinearSVM.fit(trainingTextVector, trainingSet1['category'])
+    # Train the Naive Bayes model
+    naiveClassifier = MultinomialNB()
+    naiveClassifier.fit(trainingTextVector, trainingCategory)
 
-    # Vectorize the text from Training Set 3
-    trainingSet3Vector = vectorizer.transform(trainingSet3RemovedLabels['text'])
-
-    # Get predictions and probabilities from both models
-    linear_predictions, linear_probabilities = predict_with_probabilities(linearSVM, trainingSet3Vector)
-    non_linear_predictions, non_linear_probabilities = predict_with_probabilities(nonLinearSVM, trainingSet3Vector)
-
-    # Relabel Training Set 3 based on the model with the highest confidence
-    new_labels = []
-    for i in range(len(trainingSet3RemovedLabels)):
-        if max(linear_probabilities[i]) > max(non_linear_probabilities[i]):
-            new_labels.append(linear_predictions[i])  # Use label from linear SVM
-        else:
-            new_labels.append(non_linear_predictions[i])  # Use label from non-linear SVM
-
-    # Add the new labels to Training Set 3 and return
-    trainingSet3RemovedLabels['category'] = new_labels
-    return trainingSet3RemovedLabels
-
-# SVM Function to retrain and evaluate the SVM models
-def retrainAndEvaluate(trainingSet1, trainingSet3Relabeled, testSet, testLabels):
-    # Combine Training Set 1 and the newly labeled Training Set 3
-    combinedTrainingSet = pd.concat([trainingSet1, trainingSet3Relabeled])
-
-    # Vectorize the combined dataset
-    vectorizer = CountVectorizer()
-    combinedTextVector = vectorizer.fit_transform(combinedTrainingSet['text'])
-    testTextVector = vectorizer.transform(testSet['text'])
-
-    # Retrain Linear SVM
-    linearSVM = SVC(kernel='linear')
-    linearSVM.fit(combinedTextVector, combinedTrainingSet['category'])
-    linear_predictions = linearSVM.predict(testTextVector)
-
-    # Retrain Non-Linear SVM (Sigmoid Kernel)
-    nonLinearSVM = SVC(kernel='sigmoid')
-    nonLinearSVM.fit(combinedTextVector, combinedTrainingSet['category'])
-    non_linear_predictions = nonLinearSVM.predict(testTextVector)
-
-    # Evaluate both models
-    linear_accuracy = accuracy_score(testLabels, linear_predictions)
-    non_linear_accuracy = accuracy_score(testLabels, non_linear_predictions)
-
-    linear_report = classification_report(testLabels, linear_predictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
-    non_linear_report = classification_report(testLabels, non_linear_predictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    # Predict and evaluate
+    categoryPredictions = naiveClassifier.predict(testTextVector)
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions,
+                                   target_names=['0 (Business)', '1 (Entertainment)',
+                                                 '2 (Politics)', '3 (Sport)', '4 (Tech)'])
 
     # Print results
-    print(f'\nRetrained Linear SVM Accuracy: {linear_accuracy * 100:.2f}%')
-    print(f'Retrained Linear SVM Classification Report:\n{linear_report}')
+    print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nNaive Bayes Classification Report:\n{report}')
 
-    print(f'\nRetrained Non-Linear SVM (Sigmoid) Accuracy: {non_linear_accuracy * 100:.2f}%')
-    print(f'Retrained Non-Linear SVM Classification Report:\n{non_linear_report}')
+    return naiveClassifier, vectorizer, accuracy, report
 
-    return linear_accuracy, non_linear_accuracy
+# Function to predict labels and posterior probabilities using Naive Bayes
+def predict_with_probabilities_nb(model, vectorizer, textData):
+    textVector = vectorizer.transform(textData)
+    predicted_labels = model.predict(textVector)
+    predicted_probabilities = model.predict_proba(textVector)
+    return predicted_labels, predicted_probabilities
+  
+  
+  
+  
+  
+  
+  
+  
 
 def main():
 
@@ -314,26 +295,111 @@ def main():
     # Full SVM models
     trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='linear')
     trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='sigmoid')
-
+    
+    # Homogenous Neural Network Model
     mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
 
- 
+    # Homogenous Naive Bayes Model
+    
 
-    # Vectorize the text in trainingSet1
-    #vectorizer = CountVectorizer()
-    #vectorizer.fit(trainingSet1['text'])
+    
+    
+    
+    # Part 1: Train Naive Bayes models on trainingSet1 and trainingSet2
+    print("\nTraining Naive Bayes model on Training Set 1")
+    model1, vectorizer1, accuracy1, report1 = naiveBayes(trainingSet1, testSet, testLabels['category'], use_tfidf=True)
 
-    # Relabel Training Set 3 based on SVM confidence
-    #relabeled_trainingSet3 = relabelTrainingSet3(trainingSet1, trainingSet3RemovedLabels, vectorizer)
-    #print('\nSuccessfully relabeled Training Set 3.\n')
+    print("\nTraining Naive Bayes model on Training Set 2")
+    model2, vectorizer2, accuracy2, report2 = naiveBayes(trainingSet2, testSet, testLabels['category'], use_tfidf=True)
 
-    # Retrain both SVM models and evaluate them on the test set
-    #linear_accuracy, non_linear_accuracy = retrainAndEvaluate(trainingSet1, relabeled_trainingSet3, testSet, testLabels['category'])
+    # Use both models to predict labels and probabilities for trainingSet3
+    labels1, probs1 = predict_with_probabilities_nb(model1, vectorizer1, trainingSet3NoLabels['text'])
+    labels2, probs2 = predict_with_probabilities_nb(model2, vectorizer2, trainingSet3NoLabels['text'])
 
-    # Print the results in a table format
-    #print("\nRetrained SVM Model Accuracies:")
-    #print(f"Linear SVM: {linear_accuracy * 100:.2f}%")
-    #print(f"Non-linear SVM (Sigmoid Kernel): {non_linear_accuracy * 100:.2f}%")
+    # Set a lower confidence threshold
+    threshold = 0.8
+    new_labels = []
+    indices_to_include = []
+
+    # Include data points where either model predicts with high confidence
+    for i in range(len(trainingSet3NoLabels)):
+        max_prob1 = max(probs1[i])
+        max_prob2 = max(probs2[i])
+
+        if max_prob1 >= threshold:
+            new_labels.append(labels1[i])
+            indices_to_include.append(i)
+        elif max_prob2 >= threshold:
+            new_labels.append(labels2[i])
+            indices_to_include.append(i)
+        else:
+            # Skip low-confidence predictions
+            pass
+
+    # Filter trainingSet3 to only include high-confidence predictions
+    trainingSet3Filtered = trainingSet3NoLabels.iloc[indices_to_include].copy()
+    trainingSet3Filtered['category'] = new_labels
+
+    # Print the number of data points added from Training Set 3
+    print(f"\nNumber of high-confidence labels added from Training Set 3: {len(new_labels)}")
+
+    # Combine Training Set 1 and the filtered Training Set 3
+    combinedSet1 = pd.concat([trainingSet1, trainingSet3Filtered])
+
+    # Retrain the Naive Bayes model with the adjusted combined set
+    print("\nRetraining Naive Bayes model 1 with Training Set 1 and high-confidence labels from Training Set 3")
+
+    # Use TF-IDF vectorizer fitted on the combined training data
+    vectorizer_combined1 = TfidfVectorizer()
+    combinedTextVector1 = vectorizer_combined1.fit_transform(combinedSet1['text'])
+    testTextVector1 = vectorizer_combined1.transform(testSet['text'])
+
+    # Retrain the model
+    naiveClassifier1_retrained = MultinomialNB()
+    naiveClassifier1_retrained.fit(combinedTextVector1, combinedSet1['category'])
+
+    # Evaluate the retrained model
+    categoryPredictions1_retrained = naiveClassifier1_retrained.predict(testTextVector1)
+    accuracy1_retrained = accuracy_score(testLabels['category'], categoryPredictions1_retrained)
+    report1_retrained = classification_report(testLabels['category'], categoryPredictions1_retrained,
+                                              target_names=['0 (Business)', '1 (Entertainment)',
+                                                            '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    print(f"\nRetrained Naive Bayes Model 1 Accuracy: {accuracy1_retrained * 100:.2f}%")
+    print(f'\nRetrained Naive Bayes Model 1 Classification Report:\n{report1_retrained}')
+
+    # Repeat the process for Model 2
+    combinedSet2 = pd.concat([trainingSet2, trainingSet3Filtered])
+
+    print("\nRetraining Naive Bayes model 2 with Training Set 2 and high-confidence labels from Training Set 3")
+
+    # Use TF-IDF vectorizer fitted on the combined training data
+    vectorizer_combined2 = TfidfVectorizer()
+    combinedTextVector2 = vectorizer_combined2.fit_transform(combinedSet2['text'])
+    testTextVector2 = vectorizer_combined2.transform(testSet['text'])
+
+    # Retrain the model
+    naiveClassifier2_retrained = MultinomialNB()
+    naiveClassifier2_retrained.fit(combinedTextVector2, combinedSet2['category'])
+
+    # Evaluate the retrained model
+    categoryPredictions2_retrained = naiveClassifier2_retrained.predict(testTextVector2)
+    accuracy2_retrained = accuracy_score(testLabels['category'], categoryPredictions2_retrained)
+    report2_retrained = classification_report(testLabels['category'], categoryPredictions2_retrained,
+                                              target_names=['0 (Business)', '1 (Entertainment)',
+                                                            '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    print(f"\nRetrained Naive Bayes Model 2 Accuracy: {accuracy2_retrained * 100:.2f}%")
+    print(f'\nRetrained Naive Bayes Model 2 Classification Report:\n{report2_retrained}')
+
+    # Report the initial and retrained accuracies
+    print(f"\nInitial Naive Bayes Model 1 Accuracy: {accuracy1 * 100:.2f}%")
+    print(f"Retrained Naive Bayes Model 1 Accuracy: {accuracy1_retrained * 100:.2f}%")
+
+    print(f"\nInitial Naive Bayes Model 2 Accuracy: {accuracy2 * 100:.2f}%")
+    print(f"Retrained Naive Bayes Model 2 Accuracy: {accuracy2_retrained * 100:.2f}%")
+    
+    
 
 if __name__ == '__main__':
     main()
