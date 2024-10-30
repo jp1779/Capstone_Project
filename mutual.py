@@ -8,12 +8,11 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
-from sklearn.calibration import CalibratedClassifierCV
 
 # Initialize the stemmer and lemmatizer
 stemmer = PorterStemmer()
@@ -75,6 +74,82 @@ def naiveBayes(trainingSet, testSet, testLabels):
     # Print results
     print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
     print(f'\nNaive Bayes Classification Report:\n{report}')
+
+# Naive Bayes Model function
+def naiveBayesIsrael(trainingSet, testSet, testLabels):
+    # Obtain the data
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Vectorize the text
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the Naive Bayes model
+    naiveClassifier = MultinomialNB()
+    naiveClassifier.fit(trainingTextVector, trainingCategory)
+
+    # Predict and evaluate
+    categoryPredictions = naiveClassifier.predict(testTextVector)
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions,
+                                   target_names=['0 (Business)', '1 (Entertainment)',
+                                                 '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Print results
+    print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nNaive Bayes Classification Report:\n{report}')
+
+    return naiveClassifier, vectorizer, accuracy, report
+
+# Function to predict labels and posterior probabilities using Naive Bayes
+def predict_with_probabilities_nb(model, vectorizer, textData):
+    textVector = vectorizer.transform(textData)
+    predicted_labels = model.predict(textVector)
+    predicted_probabilities = model.predict_proba(textVector)
+    return predicted_labels, predicted_probabilities
+
+# Ensemble method to combine model predictions using soft voting
+def ensemble_soft_voting(probs1, probs2, classes_):
+    avg_probs = (probs1 + probs2) / 2  # Average the probabilities from both models
+    ensemble_label_indices = avg_probs.argmax(axis=1)  # Choose the label with the highest average probability
+    ensemble_labels = [classes_[i] for i in ensemble_label_indices]  # Convert indices back to class labels
+    return ensemble_labels
+
+# Main function with soft voting ensemble method
+def mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
+
+    # Part 1: Train Naive Bayes models on trainingSet1 and trainingSet2
+    print("\nInitial Accuracy of Naive Bayes Model 1 on Training Set 1")
+    model1, vectorizer1, accuracy1_before, report1 = naiveBayesIsrael(trainingSet1, testSet, testLabels['category'])
+
+    print("\nInitial Accuracy of Naive Bayes Model 2 on Training Set 2")
+    model2, vectorizer2, accuracy2_before, report2 = naiveBayesIsrael(trainingSet2, testSet, testLabels['category'])
+
+    # Part 2: Evaluate ensemble model before retraining
+    _, probs1_test = predict_with_probabilities_nb(model1, vectorizer1, testSet['text'])
+    _, probs2_test = predict_with_probabilities_nb(model2, vectorizer2, testSet['text'])
+    
+    ensemble_labels_before = ensemble_soft_voting(probs1_test, probs2_test, model1.classes_)
+    accuracy_ensemble_before = accuracy_score(testLabels['category'], ensemble_labels_before)
+
+    # Part 3: Retrain models with relabeled Training Set 3
+    print("\nRetrained Naive Bayes Model 1 Accuracy")
+    combinedSet1 = pd.concat([trainingSet1, trainingSet3])
+    model1_retrained, vectorizer1_retrained, accuracy1_after, _ = naiveBayesIsrael(combinedSet1, testSet, testLabels['category'])
+
+    print("\nRetrained Naive Bayes Model 2 Accuracy")
+    combinedSet2 = pd.concat([trainingSet2, trainingSet3])
+    model2_retrained, vectorizer2_retrained, accuracy2_after, _ = naiveBayesIsrael(combinedSet2, testSet, testLabels['category'])
+
+    # Part 4: Evaluate ensemble model after retraining
+    _, probs1_retrain_test = predict_with_probabilities_nb(model1_retrained, vectorizer1_retrained, testSet['text'])
+    _, probs2_retrain_test = predict_with_probabilities_nb(model2_retrained, vectorizer2_retrained, testSet['text'])
+    
+    ensemble_labels_after = ensemble_soft_voting(probs1_retrain_test, probs2_retrain_test, model1_retrained.classes_)
+    accuracy_ensemble_after = accuracy_score(testLabels['category'], ensemble_labels_after)
 
 # MLP Model Full Training
 def neuralNetwork(trainingSet, testSet, testLabels):
@@ -167,14 +242,14 @@ def mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3, testSet, testL
     accuracy1 = accuracy_score(testLabels, predictions1)
     accuracy2 = accuracy_score(testLabels, predictions2)
 
-    print(f'\nHomogenous Mutual Learning NN1 Accuracy: {accuracy1 * 100:.2f}%')
-    print(f'\nHomogenous Mutual Learning NN2 Accuracy: {accuracy2 * 100:.2f}%')
+    print(f'\nRetrained Neural Network 1 Accuracy: {accuracy1 * 100:.2f}%')
+    print(f'\nRetrained Neural Network 2 Accuracy: {accuracy2 * 100:.2f}%')
 
     report1 = classification_report(testLabels, predictions1, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
     report2 = classification_report(testLabels, predictions2, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
 
-    print(f'\nHomogenous Mutual Learning NN1 Classification Report:\n{report1}')
-    print(f'\nHomogenous Mutual Learning NN2 Classification Report:\n{report2}')
+    print(f'\nRetrained Neural Network 1 Classification Report:\n{report1}')
+    print(f'\nRetrained Neural Network 2 Classification Report:\n{report2}')
    
 
 # SVM models Full Training
@@ -233,17 +308,20 @@ def main():
     print('\nSuccessfully preprocessed the data.\n')
 
     # Full Naive Bayes Model
-    naiveBayes(fullTrainingSet, testSet, testLabels['category'])
+    #naiveBayes(fullTrainingSet, testSet, testLabels['category'])
 
     # Full MLP Neural Network Model
-    neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
+    #neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
 
     # Full SVM models
-    trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='linear')
-    trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='sigmoid')
+    #trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='linear')
+    #trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='sigmoid')
     
     # Homogenous Neural Network Model
-    mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
+    #mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
+    
+    # Homogenous Naive Bayes Model
+    #mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
 
 if __name__ == '__main__':
     main()
