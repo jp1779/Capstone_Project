@@ -13,6 +13,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
+from sklearn.calibration import CalibratedClassifierCV
 
 # Initialize the stemmer and lemmatizer
 stemmer = PorterStemmer()
@@ -283,6 +284,97 @@ def trainSVM(trainingSet, testSet, testLabels, kernel_type):
 
     return accuracy
 
+
+def mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels):
+    vectorizer = CountVectorizer()
+
+    # Transform training sets using the single vectorizer instance
+    trainingTextVector1 = vectorizer.fit_transform(trainingSet1['text'])
+    trainingTextVector2 = vectorizer.transform(trainingSet2['text'])
+    trainingTextVector3 = vectorizer.transform(trainingSet3RemovedLabels['text'])
+    testTextVector = vectorizer.transform(testSet['text'])
+
+    # Part 1: Train Linear SVM on Training Set 1
+    linearSVM = SVC(kernel='linear', probability=True)
+    linearSVM.fit(trainingTextVector1, trainingSet1['category'])
+    linear_predictions = linearSVM.predict(testTextVector)
+    linear_accuracy = accuracy_score(testLabels, linear_predictions)
+    linear_report = classification_report(testLabels, linear_predictions,
+                                          target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)',
+                                                        '3 (Sport)', '4 (Tech)'])
+
+    # Part 1: Train Non-Linear SVM (Sigmoid Kernel) on Training Set 2
+    nonLinearSVM = SVC(kernel='sigmoid', probability=True)
+    nonLinearSVM.fit(trainingTextVector2, trainingSet2['category'])
+    non_linear_predictions = nonLinearSVM.predict(testTextVector)
+    non_linear_accuracy = accuracy_score(testLabels, non_linear_predictions)
+    non_linear_report = classification_report(testLabels, non_linear_predictions,
+                                              target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)',
+                                                            '3 (Sport)', '4 (Tech)'])
+
+    # Display initial results for Part 1
+    print(f"\nLinear SVM Accuracy with Training Set 1: {linear_accuracy * 100:.2f}%\n{linear_report}")
+    print(f"\nNon-linear SVM Accuracy with Training Set 2: {non_linear_accuracy * 100:.2f}%\n{non_linear_report}")
+
+    # Calibrate probabilities for mutual learning
+    linearSVM_calibrated = CalibratedClassifierCV(linearSVM).fit(trainingTextVector1, trainingSet1['category'])
+    nonLinearSVM_calibrated = CalibratedClassifierCV(nonLinearSVM).fit(trainingTextVector2, trainingSet2['category'])
+
+    # Predictions and probabilities for Training Set 3
+    linear_predictions3, linear_probabilities = linearSVM_calibrated.predict(
+        trainingTextVector3), linearSVM_calibrated.predict_proba(trainingTextVector3)
+    non_linear_predictions3, non_linear_probabilities = nonLinearSVM_calibrated.predict(
+        trainingTextVector3), nonLinearSVM_calibrated.predict_proba(trainingTextVector3)
+
+    # Relabel Training Set 3
+    new_labels = []
+    for i in range(len(trainingSet3RemovedLabels)):
+        if max(linear_probabilities[i]) > max(non_linear_probabilities[i]):
+            new_labels.append(linear_predictions3[i])
+        else:
+            new_labels.append(non_linear_predictions3[i])
+
+    trainingSet3Relabeled = trainingSet3RemovedLabels.copy()
+    trainingSet3Relabeled['category'] = new_labels
+
+    # Combine Training Set 1 with relabeled Training Set 3 for linear SVM retraining
+    combinedTrainingSet1 = pd.concat([trainingSet1, trainingSet3Relabeled])
+    combinedTextVector1 = vectorizer.transform(combinedTrainingSet1['text'])
+
+    # Combine Training Set 2 with relabeled Training Set 3 for non-linear SVM retraining
+    combinedTrainingSet2 = pd.concat([trainingSet2, trainingSet3Relabeled])
+    combinedTextVector2 = vectorizer.transform(combinedTrainingSet2['text'])
+
+    # Retrain both SVM models on their respective combined datasets
+    linearSVM.fit(combinedTextVector1, combinedTrainingSet1['category'])
+    nonLinearSVM.fit(combinedTextVector2, combinedTrainingSet2['category'])
+
+    # Evaluate the retrained SVM models on the test set
+    retrained_linear_predictions = linearSVM.predict(testTextVector)
+    retrained_linear_accuracy = accuracy_score(testLabels, retrained_linear_predictions)
+    retrained_linear_report = classification_report(testLabels, retrained_linear_predictions,
+                                                    target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)',
+                                                                  '3 (Sport)', '4 (Tech)'])
+
+    retrained_non_linear_predictions = nonLinearSVM.predict(testTextVector)
+    retrained_non_linear_accuracy = accuracy_score(testLabels, retrained_non_linear_predictions)
+    retrained_non_linear_report = classification_report(testLabels, retrained_non_linear_predictions,
+                                                        target_names=['0 (Business)', '1 (Entertainment)',
+                                                                      '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Display results for Part 2
+    print(f"\nRetrained Linear SVM Accuracy: {retrained_linear_accuracy * 100:.2f}%\n{retrained_linear_report}")
+    print(f"\nRetrained Non-linear SVM Accuracy: {retrained_non_linear_accuracy * 100:.2f}%\n{retrained_non_linear_report}")
+
+    # Summary Table
+    print("\nSummary Table of SVM Results:")
+    print(f"{'Model':<30} {'Initial Accuracy':<20} {'Retrained Accuracy':<20}")
+    print(f"{'Linear SVM ':<30} {linear_accuracy * 100:.2f}%{'':<15} {retrained_linear_accuracy * 100:.2f}%")
+    print(f"{'Non-linear SVM':<30} {non_linear_accuracy * 100:.2f}%{'':<15} {retrained_non_linear_accuracy * 100:.2f}%")
+
+    return
+
+
 def main():
 
     # Read the provided CSV files.
@@ -322,6 +414,9 @@ def main():
     
     # Homogenous Naive Bayes Model
     #mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
+
+    # Homogenous SVM Model
+    mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
 
 if __name__ == '__main__':
     main()
