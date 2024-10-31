@@ -313,8 +313,11 @@ def mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, te
                                                             '3 (Sport)', '4 (Tech)'])
 
     # Display initial results for Part 1
-    print(f"\nLinear SVM Accuracy with Training Set 1: {linear_accuracy * 100:.2f}%\n{linear_report}")
-    print(f"\nNon-linear SVM Accuracy with Training Set 2: {non_linear_accuracy * 100:.2f}%\n{non_linear_report}")
+    print(f"\nLinear SVM Accuracy with Training Set 1: {linear_accuracy * 100:.2f}%")
+    print(f"\nLinear SVM Classification Report: \n{linear_report}")
+
+    print(f"\nNon-linear SVM Accuracy with Training Set 2: {non_linear_accuracy * 100:.2f}%")
+    print(f"\nNon-Linear SVM Classification Report: \n{non_linear_report}")
 
     # Calibrate probabilities for mutual learning
     linearSVM_calibrated = CalibratedClassifierCV(linearSVM).fit(trainingTextVector1, trainingSet1['category'])
@@ -363,17 +366,81 @@ def mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, te
                                                                       '2 (Politics)', '3 (Sport)', '4 (Tech)'])
 
     # Display results for Part 2
-    print(f"\nRetrained Linear SVM Accuracy: {retrained_linear_accuracy * 100:.2f}%\n{retrained_linear_report}")
-    print(f"\nRetrained Non-linear SVM Accuracy: {retrained_non_linear_accuracy * 100:.2f}%\n{retrained_non_linear_report}")
+    print(f"\nRetrained Linear SVM Accuracy: {retrained_linear_accuracy * 100:.2f}%")
+    print(f"\nRetrained Linear SVM Classifcation Report: \n{retrained_linear_report}")
 
-    # Summary Table
-    print("\nSummary Table of SVM Results:")
-    print(f"{'Model':<30} {'Initial Accuracy':<20} {'Retrained Accuracy':<20}")
-    print(f"{'Linear SVM ':<30} {linear_accuracy * 100:.2f}%{'':<15} {retrained_linear_accuracy * 100:.2f}%")
-    print(f"{'Non-linear SVM':<30} {non_linear_accuracy * 100:.2f}%{'':<15} {retrained_non_linear_accuracy * 100:.2f}%")
+    print(f"\nRetrained Non-linear SVM Accuracy: {retrained_non_linear_accuracy * 100:.2f}%")
+    print(f"\nRetrained Non-Linear SVM Classifcation Report: \n{retrained_non_linear_report}")
 
     return
 
+def mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
+    # Initial Training and Evaluation
+    vectorizerNN = CountVectorizer()
+    trainingTextVectorNN = vectorizerNN.fit_transform(trainingSet1['text'])
+    testTextVectorNN = vectorizerNN.transform(testSet['text'])
+    
+    mlpClassifier = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500, random_state=1)
+    mlpClassifier.fit(trainingTextVectorNN, trainingSet1['category'])
+    nnInitialPredictions = mlpClassifier.predict(testTextVectorNN)
+    nnInitialAccuracy = accuracy_score(testLabels, nnInitialPredictions)
+    nnReport = classification_report(testLabels, nnInitialPredictions,
+                                              target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)',
+                                                            '3 (Sport)', '4 (Tech)'])
+    print(f"\nMLP Neural Network Accuracy on Training Set 1: {nnInitialAccuracy * 100:.2f}%")
+    print(f"\nMLP Neural Network Classification Report: \n{nnReport}")
+
+
+    vectorizerSVM = CountVectorizer()
+    trainingTextVectorSVM = vectorizerSVM.fit_transform(trainingSet2['text'])
+    testTextVectorSVM = vectorizerSVM.transform(testSet['text'])
+    
+    svmClassifier = SVC(kernel='sigmoid', probability=True)
+    svmClassifier.fit(trainingTextVectorSVM, trainingSet2['category'])
+    svmInitialPredictions = svmClassifier.predict(testTextVectorSVM)
+    svmInitialAccuracy = accuracy_score(testLabels, svmInitialPredictions)
+    svmReport = classification_report(testLabels, svmInitialPredictions,
+                                              target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)',
+                                                            '3 (Sport)', '4 (Tech)'])
+    print(f"\nNon-Linear SVM Accuracy with Training Set 2: {svmInitialAccuracy * 100:.2f}%")
+    print(f"\nNon-Linear SVM Classification Report: \n{svmReport}")
+
+    # Mutual Learning on Training Set 3
+    trainingTextVector3NN = vectorizerNN.transform(trainingSet3['text'])
+    trainingTextVector3SVM = vectorizerSVM.transform(trainingSet3['text'])
+    nnProbabilities3 = mlpClassifier.predict_proba(trainingTextVector3NN)
+    svmProbabilities3 = svmClassifier.predict_proba(trainingTextVector3SVM)
+
+    # Relabel based on highest confidence
+    mutualLabels = [
+        mlpClassifier.predict(trainingTextVector3NN[i])[0] if max(nnProbabilities3[i]) > max(svmProbabilities3[i])
+        else svmClassifier.predict(trainingTextVector3SVM[i])[0]
+        for i in range(len(trainingSet3))
+    ]
+    trainingSet3Relabeled = trainingSet3.copy()
+    trainingSet3Relabeled['category'] = mutualLabels
+
+    # Retraining Neural Network with Training Set 1 + Relabeled Training Set 3
+    combinedTrainingSet1 = pd.concat([trainingSet1, trainingSet3Relabeled])
+    combinedTextVectorNN = vectorizerNN.transform(combinedTrainingSet1['text'])
+    mlpClassifier.fit(combinedTextVectorNN, combinedTrainingSet1['category'])
+    nnRetrainedPredictions = mlpClassifier.predict(testTextVectorNN)
+    nnRetrainedAccuracy = accuracy_score(testLabels, nnRetrainedPredictions)
+    nnRetrainedReport = classification_report(testLabels, nnRetrainedPredictions,
+                                              target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    print(f"\nRetrained Neural Network Accuracy: {nnRetrainedAccuracy * 100:.2f}%")
+    print(f"\nNeural Network Retrained Classification Report:\n{nnRetrainedReport}")
+
+    # Retraining Non-linear SVM with Training Set 2 + Relabeled Training Set 3
+    combinedTrainingSet2 = pd.concat([trainingSet2, trainingSet3Relabeled])
+    combinedTextVectorSVM = vectorizerSVM.transform(combinedTrainingSet2['text'])
+    svmClassifier.fit(combinedTextVectorSVM, combinedTrainingSet2['category'])
+    svmRetrainedPredictions = svmClassifier.predict(testTextVectorSVM)
+    svmRetrainedAccuracy = accuracy_score(testLabels, svmRetrainedPredictions)
+    svmRetrainedReport = classification_report(testLabels, svmRetrainedPredictions,
+                                               target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+    print(f"\nRetrained Non-linear SVM Accuracy: {svmRetrainedAccuracy * 100:.2f}%")
+    print(f"\nNon-linear SVM Retrained Classification Report:\n{svmRetrainedReport}")
 
 def main():
 
@@ -416,7 +483,10 @@ def main():
     #mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
 
     # Homogenous SVM Model
-    mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
+    #mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
+
+    # Mutual Learning between MLP Neural Network and Non-Linear (Sigmoid) SVM 
+    #mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
 
 if __name__ == '__main__':
     main()
