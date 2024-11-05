@@ -442,6 +442,14 @@ def mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testL
     print(f"\nRetrained Non-linear SVM Accuracy: {svmRetrainedAccuracy * 100:.2f}%")
     print(f"\nNon-linear SVM Retrained Classification Report:\n{svmRetrainedReport}")
 
+#avinash
+def mutualBayesAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
+    return
+
+#israel
+def mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
+    return
+
 def main():
 
     # Read the provided CSV files.
@@ -459,7 +467,7 @@ def main():
 
     # Split the full training set into 3 equal-sized subsets.
     trainingSet1, trainingSet2, trainingSet3 = np.array_split(fullTrainingSet, 3)
-    trainingSet3RemovedLabels = trainingSet3.drop(columns=['category'])  # Ensure labels are removed
+    trainingSet3RemovedLabels = trainingSet3.drop(columns=['category'])
 
     # Save the preprocessed data to new CSV files.
     fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
@@ -487,6 +495,12 @@ def main():
 
     # Mutual Learning between MLP Neural Network and Non-Linear (Sigmoid) SVM 
     #mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
+
+    # Mutual Learning between Naive Bayes and Non-Linear (Sigmoid) SVM
+    mutualBayesAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
+
+    # Mutual Learning between MLP Neural Network and Naive Bayes
+    mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels) 
 
 if __name__ == '__main__':
     main()
