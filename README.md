@@ -37,19 +37,15 @@ To share slides/documents and communicate.
 
 **Jorge**  
   Email: jpugaher@purdue.edu  
-  Discord: .j.p
 
 **Brendan**  
   Email: bwtea@purdue.edu  
-  Discord: tekejr  
 
 **Israel**  
   Email: ioladeji@purdue.edu  
-  Discord: LuCID  
 
   **Avinash**  
   Email: aopandey@purdue.edu  
-  Discord: Archer  
 
   
 <br/>
