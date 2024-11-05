@@ -54,11 +54,11 @@ To share slides/documents and communicate.
   
 <br/>
 
-### Project Segment Visuals
+### Project Segments
 ![processMutualLearning](https://github.com/user-attachments/assets/bf5df7a7-a30c-4ddc-a730-26762934d03c)
 
-*Outdated: Does not include stemming*
-![dataPreprocessing](https://github.com/user-attachments/assets/13f2273a-8d9a-47bc-8cdc-d4bc9d04c421)
+### Data Preprocessing
+![DataPreprocessing](https://github.com/user-attachments/assets/97601efb-cf18-4c6c-8187-009390c47884)
 
 
 ### Additional Resources
