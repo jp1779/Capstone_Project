@@ -443,8 +443,92 @@ def mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testL
     print(f"\nNon-linear SVM Retrained Classification Report:\n{svmRetrainedReport}")
 
 #avinash
-def mutualBayesAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
-    return
+# Main function to perform mutual learning with Naive Bayes and Linear SVM (with SVM trained on Training Set 2)
+def mutualBayesAndSVM(fullTrainingSet, testSet, testLabels):
+    # Initialize CountVectorizer
+    vectorizer = CountVectorizer()
+
+    # Split the full training set into 3 parts
+    trainingSet1, trainingSet2, trainingSet3 = np.array_split(fullTrainingSet, 3)
+    trainingSet3RemovedLabels = trainingSet3.drop(columns=['category'])  # Remove labels from Training Set 3
+
+    # Transform training sets using the single vectorizer instance
+    trainingTextVector1 = vectorizer.fit_transform(trainingSet1['text'])
+    trainingTextVector2 = vectorizer.transform(trainingSet2['text'])
+    trainingTextVector3 = vectorizer.transform(trainingSet3RemovedLabels['text'])
+    testTextVector = vectorizer.transform(testSet['text'])
+
+    # Part 1: Train Naive Bayes on Training Set 1 and Linear SVM on Training Set 2
+    # Train Naive Bayes
+    naiveBayesModel = MultinomialNB()
+    naiveBayesModel.fit(trainingTextVector1, trainingSet1['category'])
+    nb_predictions = naiveBayesModel.predict(testTextVector)
+    nb_accuracy = accuracy_score(testLabels, nb_predictions)
+    nb_report = classification_report(testLabels, nb_predictions,
+                                      target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Train Linear SVM on Training Set 2
+    linearSVM = SVC(kernel='linear', probability=True)
+    linearSVM.fit(trainingTextVector2, trainingSet2['category'])
+    linear_predictions = linearSVM.predict(testTextVector)
+    linear_accuracy = accuracy_score(testLabels, linear_predictions)
+    linear_report = classification_report(testLabels, linear_predictions,
+                                          target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Display results for Part 1
+    print("\nInitial Evaluation on Test Set:")
+    print(f"Naive Bayes Accuracy: {nb_accuracy * 100:.2f}%\n{nb_report}")
+    print(f"Linear SVM Accuracy: {linear_accuracy * 100:.2f}%\n{linear_report}")
+
+    # Part 2: Mutual Learning
+    # Calibrated probabilities for mutual learning
+    nb_calibrated = CalibratedClassifierCV(naiveBayesModel).fit(trainingTextVector1, trainingSet1['category'])
+    linearSVM_calibrated = CalibratedClassifierCV(linearSVM).fit(trainingTextVector2, trainingSet2['category'])
+
+    # Predictions and probabilities for Training Set 3
+    nb_predictions3, nb_probabilities = nb_calibrated.predict(trainingTextVector3), nb_calibrated.predict_proba(trainingTextVector3)
+    linear_predictions3, linear_probabilities = linearSVM_calibrated.predict(trainingTextVector3), linearSVM_calibrated.predict_proba(trainingTextVector3)
+
+    # Relabel Training Set 3 based on highest confidence
+    new_labels = []
+    for i in range(len(trainingSet3RemovedLabels)):
+        if max(nb_probabilities[i]) > max(linear_probabilities[i]):
+            new_labels.append(nb_predictions3[i])
+        else:
+            new_labels.append(linear_predictions3[i])
+
+    trainingSet3Relabeled = trainingSet3RemovedLabels.copy()
+    trainingSet3Relabeled['category'] = new_labels
+
+    # Combine Training Set 1 with relabeled Training Set 3
+    combinedTrainingSet = pd.concat([trainingSet1, trainingSet3Relabeled])
+    combinedTextVector = vectorizer.transform(combinedTrainingSet['text'])  # Reuse vectorizer for consistency
+
+    # Retrain both models on the combined dataset
+    naiveBayesModel.fit(combinedTextVector, combinedTrainingSet['category'])
+    linearSVM.fit(combinedTextVector, combinedTrainingSet['category'])
+
+    # Evaluate retrained models on the test set
+    retrained_nb_predictions = naiveBayesModel.predict(testTextVector)
+    retrained_nb_accuracy = accuracy_score(testLabels, retrained_nb_predictions)
+    retrained_nb_report = classification_report(testLabels, retrained_nb_predictions,
+                                                target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    retrained_linear_predictions = linearSVM.predict(testTextVector)
+    retrained_linear_accuracy = accuracy_score(testLabels, retrained_linear_predictions)
+    retrained_linear_report = classification_report(testLabels, retrained_linear_predictions,
+                                                    target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Display results for Part 2
+    print("\nMutual Learning and Retrained Evaluation on Test Set:")
+    print(f"Retrained Naive Bayes Accuracy: {retrained_nb_accuracy * 100:.2f}%\n{retrained_nb_report}")
+    print(f"Retrained Linear SVM Accuracy: {retrained_linear_accuracy * 100:.2f}%\n{retrained_linear_report}")
+
+    # Summary Table
+    print("\nSummary Table of Results:")
+    print(f"{'Model':<30} {'Initial Accuracy':<20} {'Retrained Accuracy':<20}")
+    print(f"{'Naive Bayes':<30} {nb_accuracy * 100:.2f}%{'':<15} {retrained_nb_accuracy * 100:.2f}%")
+    print(f"{'Linear SVM':<30} {linear_accuracy * 100:.2f}%{'':<15} {retrained_linear_accuracy * 100:.2f}%")
 
 #israel
 def mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
@@ -496,8 +580,8 @@ def main():
     # Mutual Learning between MLP Neural Network and Non-Linear (Sigmoid) SVM 
     #mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
 
-    # Mutual Learning between Naive Bayes and Non-Linear (Sigmoid) SVM
-    mutualBayesAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
+    # Mutual Learning between Naive Bayes and Linear (Sigmoid) SVM
+    #mutualBayesAndSVM(fullTrainingSet, testSet, testLabels['category'])
 
     # Mutual Learning between MLP Neural Network and Naive Bayes
     mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels) 
