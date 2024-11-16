@@ -15,6 +15,10 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+import joblib
+import os
+
 # Initialize the stemmer and lemmatizer
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
@@ -532,7 +536,104 @@ def mutualBayesAndSVM(fullTrainingSet, testSet, testLabels):
 
 #israel
 def mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
-    return
+    # Initialize TfidfVectorizer
+    vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
+
+    # Transform training and test sets
+    X_train1 = vectorizer.fit_transform(trainingSet1['text'])
+    X_train2 = vectorizer.transform(trainingSet2['text'])
+    X_train3 = vectorizer.transform(trainingSet3['text'])
+    X_test = vectorizer.transform(testSet['text'])
+    
+    y_train1 = trainingSet1['category']
+    y_train2 = trainingSet2['category']
+    y_test = testLabels['category']
+    
+    # Initialize models
+    nb_model = MultinomialNB()
+    mlp_model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=10, warm_start=True, random_state=42)
+    
+    # Check for existing weights
+    if os.path.exists('best_nb_model.pkl') and os.path.exists('best_mlp_model.pkl'):
+        nb_model = joblib.load('best_nb_model.pkl')
+        mlp_model = joblib.load('best_mlp_model.pkl')
+        print("Loaded previous weights for both models.")
+    else:
+        print("Training models from scratch.")
+
+    # Track best accuracy
+    best_val_accuracy = 0.0
+    patience, patience_counter = 3, 0
+    
+    # Initial performance
+    print("\nInitial Naive Bayes Accuracy:")
+    nb_model.fit(X_train1, y_train1)
+    nb_initial_accuracy = accuracy_score(y_test, nb_model.predict(X_test))
+    print(f"Naive Bayes Initial Accuracy: {nb_initial_accuracy * 100:.2f}%")
+    
+    print("\nInitial MLP Accuracy:")
+    mlp_model.fit(X_train2, y_train2)
+    mlp_initial_accuracy = accuracy_score(y_test, mlp_model.predict(X_test))
+    print(f"MLP Initial Accuracy: {mlp_initial_accuracy * 100:.2f}%")
+    
+    # Mutual Learning
+    for epoch in range(10):
+        print(f"\n--- Epoch {epoch + 1}/10 ---")
+        nb_predictions = nb_model.predict(X_train3)
+        mlp_predictions = mlp_model.predict(X_train3)
+        
+        # Generate pseudo-labels for Training Set 3
+        pseudo_labels = [
+            nb_predictions[i] if max(nb_model.predict_proba(X_train3)[i]) > max(mlp_model.predict_proba(X_train3)[i])
+            else mlp_predictions[i]
+            for i in range(len(trainingSet3))
+        ]
+        
+        # Retrain models with Training Set 3 and pseudo-labels
+        combined_X_train1 = vectorizer.transform(pd.concat([trainingSet1, trainingSet3])['text'])
+        combined_y_train1 = pd.concat([y_train1, pd.Series(pseudo_labels)])
+        nb_model.partial_fit(combined_X_train1, combined_y_train1)
+        
+        combined_X_train2 = vectorizer.transform(pd.concat([trainingSet2, trainingSet3])['text'])
+        combined_y_train2 = pd.concat([y_train2, pd.Series(pseudo_labels)])
+        mlp_model.partial_fit(combined_X_train2, combined_y_train2)
+        
+        # Evaluate on test set
+        val_predictions = mlp_model.predict(X_test)
+        val_accuracy = accuracy_score(y_test, val_predictions)
+        print(f"Validation Accuracy: {val_accuracy * 100:.2f}%")
+        
+        # Save best models
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            joblib.dump(nb_model, 'best_nb_model.pkl')
+            joblib.dump(mlp_model, 'best_mlp_model.pkl')
+            print(f"New checkpoint saved at epoch {epoch + 1}.")
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print("Early stopping due to no improvement.")
+                break
+    
+    # Load best models and evaluate final performance
+    nb_model = joblib.load('best_nb_model.pkl')
+    mlp_model = joblib.load('best_mlp_model.pkl')
+    
+    nb_final_accuracy = accuracy_score(y_test, nb_model.predict(X_test))
+    mlp_final_accuracy = accuracy_score(y_test, mlp_model.predict(X_test))
+    
+    print("\nFinal Naive Bayes Accuracy:")
+    print(f"Naive Bayes Final Accuracy: {nb_final_accuracy * 100:.2f}%")
+    print("\nFinal MLP Accuracy:")
+    print(f"MLP Final Accuracy: {mlp_final_accuracy * 100:.2f}%")
+    
+    # Percentage improvement
+    nb_improvement = ((nb_final_accuracy - nb_initial_accuracy) / nb_initial_accuracy) * 100
+    mlp_improvement = ((mlp_final_accuracy - mlp_initial_accuracy) / mlp_initial_accuracy) * 100
+    print(f"\nNaive Bayes Accuracy Improvement: {nb_improvement:.2f}%")
+    print(f"MLP Accuracy Improvement: {mlp_improvement:.2f}%")
+
 
 def main():
 
