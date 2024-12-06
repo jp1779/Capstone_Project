@@ -26,7 +26,7 @@ of the models we are using, showing its potential as an effective solution in re
 ### Project Structure
 ```
 mutual.py                # Core implementation of all models and mutual learning functions
-cli.py                   # Command-line interface for interacting with the program. This file contains the main function
+cli.py                   # Command-line interface for interacting with the program.
 BBC_train_full.csv       # Full training dataset
 test_data.csv            # Test dataset
 test_labels.csv          # Test labels
