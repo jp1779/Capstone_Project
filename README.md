@@ -71,9 +71,9 @@ e. Exit
 Enter your choice:
 ```
 
-It is worth nothing that preprocessing and the training of the models might take a few seconds. A __pycache__ folder will be generated
-in your directory to store compiled Python files for faster execution.
-  
+It is worth nothing that preprocessing and the training of the models might take a few seconds. 
+A pycache folder will be generated in your directory to store compiled Python files for faster execution.
+Once an option is chosen, you will see output showing you the evaluation results.   
 
 ### Project Segments
 ![processMutualLearning](https://github.com/user-attachments/assets/bf5df7a7-a30c-4ddc-a730-26762934d03c)
