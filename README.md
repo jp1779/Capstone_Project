@@ -58,13 +58,13 @@ This will start the command line interface which you will then pick an option fr
 Main Menu
 1. Naive Bayes Full Training
 2. MLP Neural Network Full Training
-3. Train SVM (Linear Kernel)
-4. Train SVM (Sigmoid Kernel)
-5. Mutual Learning: Naive Bayes
-6. Mutual Learning: Neural Network
-7. Mutual Learning: SVM
-8. Mutual Learning: Neural Network and SVM
-9. Mutual Learning: Naive Bayes and SVM
+3. Linear SVM (Linear Kernel) Full Training
+4. Non-Linear SVM (Sigmoid Kernel) Full Training
+5. Homogenous Mutual Learning: Naive Bayes
+6. Homogenous Mutual Learning: Neural Network
+7. Homogenous Mutual Learning: (Linear/Non-Linear): SVM
+8. Mutual Learning: Neural Network and Non-Linear SVM
+9. Mutual Learning: Naive Bayes and Linear SVM
 10. Mutual Learning: Neural Network and Naive Bayes
 e. Exit
 
