@@ -5,50 +5,75 @@
 **Avinash Pandey**  
 **Israel Oladeji**  
 **Brendan Tea**
-
 <br/>
+
+### Overview
+Machine learning models often require vast resources and large datasets to achieve high accuracy, which isn't 
+always feasible when resources are limited. Our project focuses on exploring an alternative approach to address
+this challenge which is by using the mutual learning algorithm for news classification.
+
+This algorithm allows multiple machine learning models to collaborate and share information, which in turn improves
+their individual classification accuracy. Essentially, the mutual learning approach enables models to learn from each
+other, enhancing overall performance without needing extensive data or resources.
+
+The mutual learning algorithm works by training models on different subsets of the data. These models then refine
+themselves based on the information shared by the other models in a "teacher-student" environment. This setup allows
+us to use multiple smaller datasets instead of relying on one large dataset, making it more efficient when resources are scarce.
+
+By the end of the project, we aim to demonstrate that this mutual learning approach can indeed enhance the performance
+of the models we are using, showing its potential as an effective solution in resource-constrained environments.
+
+### Project Structure
+```
+mutual.py                # Core implementation of all models and mutual learning functions
+cli.py                   # Command-line interface for interacting with the program. This file contains the main function
+BBC_train_full.csv       # Full training dataset
+test_data.csv            # Test dataset
+test_labels.csv          # Test labels
+README.md                # Project documentation
+```
+The datasets should be in the same directory as the code so that they can be used by the program. The preprocessed versions of the
+datasets are included for viewing but are not needed to make the program work, since it will generate them on its own.
 
 ### Code
-- The code is cotained in *mutual.py*. Since there are a lot of parts to this
-project, most of the lines in main have been commented out. Training these ML models takes
-a long time, so I would recommend only uncommenting the ones you are interested in
-analyzing.
+*mutual.py* is where all the functions that will be called are contained. It contains all the data preprocessing techniques,
+full training set evaluations, homogenous mutual learning evaluations, and heterogenous mutual learning evaluations.
 
-### Group Info
-- Main is the default branch. It is not protected, so you are free to push
-code into it as long as it does not affect other parts of the program in
-a negative way. If you are worried about this, you may work on another branch
-and create a pull request so someone else reviews the code.
-- Coding will be done in Python, you can use any development environment you like.
-- Tasks for the team will be posted under the issues tab. They
-will have information on who the task is assigned to, what should be done, and the
-time you should ideally complete the task by.
-- Communicate with the team if you are having issues or need help. Make sure to take
-note of said issues so that we can present them in our weekly reports.
+There are a lot of imported libraries that will be needed for the code to work. These are all listed on mutual.py and can
+be installed using the command below in your terminal (or any other method):
 
-### Meeting Times
-- The group will meet in the library or on a Discord call from 5:00PM - 5:45PM each Tuesday and Thursday,
-unless otherwise stated.
-- The meetings will mostly consist of progress updates and the creation of slides.
-- If you can not make it, please let the rest of the team know at least a day before the meeting.
+```
+pip install [library name]
+```
 
-### Contact Information <br/>
-To share slides/documents and communicate.  
+Since there are a lot of parts to this project, a command line interface called *cli.py* has been made to make it easier to
+interact with the functios in *mutual.py*. To RUN the program, just use the following command (replace python with python3 if needed):
 
-**Jorge**  
-  Email: jpugaher@purdue.edu  
+```
+python cli.py
+```
 
-**Brendan**  
-  Email: bwtea@purdue.edu  
+This will start the command line interface which you will then pick an option from:
+```
+Main Menu
+1. Naive Bayes Full Training
+2. MLP Neural Network Full Training
+3. Train SVM (Linear Kernel)
+4. Train SVM (Sigmoid Kernel)
+5. Mutual Learning: Naive Bayes
+6. Mutual Learning: Neural Network
+7. Mutual Learning: SVM
+8. Mutual Learning: Neural Network and SVM
+9. Mutual Learning: Naive Bayes and SVM
+10. Mutual Learning: Neural Network and Naive Bayes
+e. Exit
 
-**Israel**  
-  Email: ioladeji@purdue.edu  
+Enter your choice:
+```
 
-  **Avinash**  
-  Email: aopandey@purdue.edu  
-
+It is worth nothing that preprocessing and the training of the models might take a few seconds. A __pycache__ folder will be generated
+in your directory to store compiled Python files for faster execution.
   
-<br/>
 
 ### Project Segments
 ![processMutualLearning](https://github.com/user-attachments/assets/bf5df7a7-a30c-4ddc-a730-26762934d03c)
@@ -58,4 +83,4 @@ To share slides/documents and communicate.
 
 
 ### Additional Resources
-[CapstoneBookShortened.pdf](https://github.com/user-attachments/files/17000707/CapstoneBookShortened.pdf)
+[SabrinaReport.pdf](https://github.com/user-attachments/files/17000707/CapstoneBookShortened.pdf)
