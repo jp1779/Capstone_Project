@@ -47,7 +47,7 @@ pip install [library name]
 ```
 
 Since there are a lot of parts to this project, a command line interface called *cli.py* has been made to make it easier to
-interact with the functios in *mutual.py*. To RUN the program, just use the following command (replace python with python3 if needed):
+interact with the functions in *mutual.py*. To RUN the program, just use the following command (replace python with python3 if needed):
 
 ```
 python cli.py
@@ -71,7 +71,7 @@ e. Exit
 Enter your choice:
 ```
 
-It is worth nothing that preprocessing and the training of the models might take a few seconds. 
+It is worth noting that preprocessing and the training of the models might take a few seconds. 
 A pycache folder will be generated in your directory to store compiled Python files for faster execution.
 Once an option is chosen, you will see output showing you the evaluation results.   
 
