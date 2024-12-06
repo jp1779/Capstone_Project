@@ -80,7 +80,65 @@ def naiveBayes(trainingSet, testSet, testLabels):
     print(f'\nNaive Bayes Accuracy: {accuracy * 100:.2f}%')
     print(f'\nNaive Bayes Classification Report:\n{report}')
 
-# Naive Bayes Model function
+# MLP Model Full Training
+def neuralNetwork(trainingSet, testSet, testLabels):
+
+    # Obtain the data
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Vectorize the text
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the MLP Neural Network
+    mlpModel = MLPClassifier(hidden_layer_sizes = (100, 100), max_iter = 500, random_state = 1)
+    mlpModel.fit(trainingTextVector, trainingCategory)
+
+    # Predict and evaluate
+    categoryPredictions = mlpModel.predict(testTextVector)
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
+
+    # Print results
+    print(f'\nMLP Neural Network Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nMLP Neural Network Classification Report:\n{report}')
+
+# SVM models Full Training
+def trainSVM(trainingSet, testSet, testLabels, kernel_type):
+
+    # Obtain the data.
+    trainingText = trainingSet['text']
+    trainingCategory = trainingSet['category']
+    testText = testSet['text']
+
+    # Learn vocab and transform to word count vector.
+    vectorizer = CountVectorizer()
+    trainingTextVector = vectorizer.fit_transform(trainingText)
+    testTextVector = vectorizer.transform(testText)
+
+    # Train the SVM model
+    svmModel = SVC(kernel=kernel_type)
+    svmModel.fit(trainingTextVector, trainingCategory)
+    
+    # Predict the categories of the news.
+    categoryPredictions = svmModel.predict(testTextVector)
+
+    # Evaluate the performance
+    accuracy = accuracy_score(testLabels, categoryPredictions)
+    report = classification_report(testLabels, categoryPredictions,
+                                   target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)',
+                                                 '4 (Tech)'])
+    # Print the info
+    print(f'\nSVM ({kernel_type}) Accuracy: {accuracy * 100:.2f}%')
+    print(f'\nSVM ({kernel_type}) Classification Report:\n', report)
+
+    return accuracy
+
+# Israel
+# Helper function to train Naive Bayes Model differently
 def naiveBayesIsrael(trainingSet, testSet, testLabels):
     # Obtain the data
     trainingText = trainingSet['text']
@@ -109,6 +167,7 @@ def naiveBayesIsrael(trainingSet, testSet, testLabels):
 
     return naiveClassifier, vectorizer, accuracy, report
 
+# Israel
 # Function to predict labels and posterior probabilities using Naive Bayes
 def predict_with_probabilities_nb(model, vectorizer, textData):
     textVector = vectorizer.transform(textData)
@@ -116,14 +175,16 @@ def predict_with_probabilities_nb(model, vectorizer, textData):
     predicted_probabilities = model.predict_proba(textVector)
     return predicted_labels, predicted_probabilities
 
-# Ensemble method to combine model predictions using soft voting
+# Israel
+# Ensemble method to combine model predictions using soft voting for Naive Bayes.
 def ensemble_soft_voting(probs1, probs2, classes_):
     avg_probs = (probs1 + probs2) / 2  # Average the probabilities from both models
     ensemble_label_indices = avg_probs.argmax(axis=1)  # Choose the label with the highest average probability
     ensemble_labels = [classes_[i] for i in ensemble_label_indices]  # Convert indices back to class labels
     return ensemble_labels
 
-# Main function with soft voting ensemble method
+# Israel
+# Homogenous mutual learning with Naive Bayes using the Ensemble Method.
 def mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
 
     # Part 1: Train Naive Bayes models on trainingSet1 and trainingSet2
@@ -156,33 +217,8 @@ def mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabe
     ensemble_labels_after = ensemble_soft_voting(probs1_retrain_test, probs2_retrain_test, model1_retrained.classes_)
     accuracy_ensemble_after = accuracy_score(testLabels['category'], ensemble_labels_after)
 
-# MLP Model Full Training
-def neuralNetwork(trainingSet, testSet, testLabels):
-
-    # Obtain the data
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
-
-    # Vectorize the text
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
-
-    # Train the MLP Neural Network
-    mlpModel = MLPClassifier(hidden_layer_sizes = (100, 100), max_iter = 500, random_state = 1)
-    mlpModel.fit(trainingTextVector, trainingCategory)
-
-    # Predict and evaluate
-    categoryPredictions = mlpModel.predict(testTextVector)
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions, target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)', '4 (Tech)'])
-
-    # Print results
-    print(f'\nMLP Neural Network Accuracy: {accuracy * 100:.2f}%')
-    print(f'\nMLP Neural Network Classification Report:\n{report}')
-
-# Homogeneous MLP NN Training
+# Jorge
+# Homogeneous mutual learning with MLP Neural Network
 def mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
     
     # Vectorize the text
@@ -255,40 +291,9 @@ def mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3, testSet, testL
 
     print(f'\nRetrained Neural Network 1 Classification Report:\n{report1}')
     print(f'\nRetrained Neural Network 2 Classification Report:\n{report2}')
-   
 
-# SVM models Full Training
-def trainSVM(trainingSet, testSet, testLabels, kernel_type):
-
-    # Obtain the data.
-    trainingText = trainingSet['text']
-    trainingCategory = trainingSet['category']
-    testText = testSet['text']
-
-    # Learn vocab and transform to word count vector.
-    vectorizer = CountVectorizer()
-    trainingTextVector = vectorizer.fit_transform(trainingText)
-    testTextVector = vectorizer.transform(testText)
-
-    # Train the SVM model
-    svmModel = SVC(kernel=kernel_type)
-    svmModel.fit(trainingTextVector, trainingCategory)
-    
-    # Predict the categories of the news.
-    categoryPredictions = svmModel.predict(testTextVector)
-
-    # Evaluate the performance
-    accuracy = accuracy_score(testLabels, categoryPredictions)
-    report = classification_report(testLabels, categoryPredictions,
-                                   target_names=['0 (Business)', '1 (Entertainment)', '2 (Politics)', '3 (Sport)',
-                                                 '4 (Tech)'])
-    # Print the info
-    print(f'\nSVM ({kernel_type}) Accuracy: {accuracy * 100:.2f}%')
-    print(f'\nSVM ({kernel_type}) Classification Report:\n', report)
-
-    return accuracy
-
-
+# Avinash
+# Homogenous Mutual Learning between SVM models. Linear and Non-linear.
 def mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels):
     vectorizer = CountVectorizer()
 
@@ -378,6 +383,8 @@ def mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, te
 
     return
 
+# Jorge
+# Heterogenous mutual learning between the MLP Neural Network and Non-Linear SVM
 def mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
     # Initial Training and Evaluation
     vectorizerNN = CountVectorizer()
@@ -446,8 +453,8 @@ def mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testL
     print(f"\nRetrained Non-linear SVM Accuracy: {svmRetrainedAccuracy * 100:.2f}%")
     print(f"\nNon-linear SVM Retrained Classification Report:\n{svmRetrainedReport}")
 
-#avinash
-# Main function to perform mutual learning with Naive Bayes and Linear SVM (with SVM trained on Training Set 2)
+# Avinash
+# Main function to perform mutual learning with Naive Bayes and Linear SVM.
 def mutualBayesAndSVM(fullTrainingSet, testSet, testLabels):
     # Initialize CountVectorizer
     vectorizer = CountVectorizer()
@@ -534,7 +541,8 @@ def mutualBayesAndSVM(fullTrainingSet, testSet, testLabels):
     print(f"{'Naive Bayes':<30} {nb_accuracy * 100:.2f}%{'':<15} {retrained_nb_accuracy * 100:.2f}%")
     print(f"{'Linear SVM':<30} {linear_accuracy * 100:.2f}%{'':<15} {retrained_linear_accuracy * 100:.2f}%")
 
-#israel
+# Israel
+# Mutual learning between the Neural Network and Naive Bayes
 def mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels):
     # Initialize TfidfVectorizer
     vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
@@ -633,59 +641,3 @@ def mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, tes
     mlp_improvement = ((mlp_final_accuracy - mlp_initial_accuracy) / mlp_initial_accuracy) * 100
     print(f"\nNaive Bayes Accuracy Improvement: {nb_improvement:.2f}%")
     print(f"MLP Accuracy Improvement: {mlp_improvement:.2f}%")
-
-
-def main():
-
-    # Read the provided CSV files.
-    fullTrainingSet = pd.read_csv('BBC_train_full.csv')
-    testSet = pd.read_csv('test_data.csv')
-    testLabels = pd.read_csv('test_labels.csv')
-
-    # Apply preprocessing techniques to the training and testing sets.
-    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda text: PreprocessText(text))
-    testSet['text'] = testSet['text'].apply(lambda text: PreprocessText(text))
-
-    # Convert tokenized text back to a single string (join tokens)
-    fullTrainingSet['text'] = fullTrainingSet['text'].apply(lambda tokens: ' '.join(tokens))
-    testSet['text'] = testSet['text'].apply(lambda tokens: ' '.join(tokens))
-
-    # Split the full training set into 3 equal-sized subsets.
-    trainingSet1, trainingSet2, trainingSet3 = np.array_split(fullTrainingSet, 3)
-    trainingSet3RemovedLabels = trainingSet3.drop(columns=['category'])
-
-    # Save the preprocessed data to new CSV files.
-    fullTrainingSet.to_csv('BBC_train_full_preprocessed.csv', index=False)
-    testSet.to_csv('test_data_preprocessed.csv', index=False)
-    print('\nSuccessfully preprocessed the data.\n')
-
-    # Full Naive Bayes Model
-    #naiveBayes(fullTrainingSet, testSet, testLabels['category'])
-
-    # Full MLP Neural Network Model
-    #neuralNetwork(fullTrainingSet, testSet, testLabels['category'])
-
-    # Full SVM models
-    #trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='linear')
-    #trainSVM(fullTrainingSet, testSet, testLabels['category'], kernel_type='sigmoid')
-    
-    # Homogenous Neural Network Model
-    #mutualNeuralNetwork(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
-    
-    # Homogenous Naive Bayes Model
-    #mutualNaiveBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
-
-    # Homogenous SVM Model
-    #mutualSVM(trainingSet1, trainingSet2, trainingSet3RemovedLabels, testSet, testLabels['category'])
-
-    # Mutual Learning between MLP Neural Network and Non-Linear (Sigmoid) SVM 
-    #mutualNetworkAndSVM(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels)
-
-    # Mutual Learning between Naive Bayes and Linear (Sigmoid) SVM
-    #mutualBayesAndSVM(fullTrainingSet, testSet, testLabels['category'])
-
-    # Mutual Learning between MLP Neural Network and Naive Bayes
-    mutualNetworkAndBayes(trainingSet1, trainingSet2, trainingSet3, testSet, testLabels) 
-
-if __name__ == '__main__':
-    main()
